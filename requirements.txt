@@ -1,0 +1,3 @@
+langchain-community
+pdfplumber
+python-docx
