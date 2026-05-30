@@ -84,6 +84,7 @@ class PineconeService:
                     filter={"document_id": {"$eq": doc_id}},
                     include_metadata=True
                 )
+                logger.info(f"Query for doc_id {doc_id} returned {len(result.get('matches', []))} matches")
                 matches = result.get("matches", [])
                 all_matches.extend(matches)
             except PineconeException as e:
@@ -110,7 +111,7 @@ class PineconeService:
 
             tokens_list.append(tokens)
 
-        return chunk_texts, chunk_ids, tokens_list
+        return {"chunk_texts": chunk_texts, "chunk_ids": chunk_ids, "tokens_list": tokens_list}
 
     def delete(
         self,
