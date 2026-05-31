@@ -3,9 +3,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from pathlib import Path
-from retrieval.semantic_search import retrieve
+from logger.logger import get_logger, log_info, log_error, log_exception
+from retrieval.pipe_line import top_k_retrieval
+
 from dotenv import load_dotenv
 load_dotenv()
+
+logger = get_logger()
+
+
 
 mistral_primary = ChatMistralAI(
     model="ministral-8b-latest",
