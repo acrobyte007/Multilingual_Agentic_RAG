@@ -1,5 +1,4 @@
 import logging
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from typing import List
@@ -16,5 +15,5 @@ async def retrieve(name_space: str, user_query: str, doc_ids: List[str], top_k: 
             top_k=top_k
         )
         logger.info(f"Retrieved {len(search_result['chunk_texts'])} chunks")
-        return search_result["chunk_texts"]
+        return search_result
 
