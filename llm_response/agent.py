@@ -1,17 +1,21 @@
+from logger.logger import get_logger
+logger = get_logger(__name__)
+import time
+from typing import List, Optional
+from langchain.tools import tool
+from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
-from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
-from typing import Optional, List
-from pathlib import Path
-from logger.logger import get_logger, log_info, log_error, log_exception
 from retrieval.pipe_line import top_k_retrieval
-
 from dotenv import load_dotenv
 load_dotenv()
 
-logger = get_logger()
 
-
+@tool
+async def search_and_respond(namespace: str, query: str, doc_ids: List[str]) -> str:
+    """Search documents and return relevant answer based on the query and document IDs"""
+    logger.info(f"Searching documents: namespace={namespace}, query={query}, doc_ids={doc_ids}")
+    chunks = await top_k_retrieval(namespace, query, doc_ids)
+    return chunks
 
 mistral_primary = ChatMistralAI(
     model="ministral-8b-latest",
@@ -19,27 +23,59 @@ mistral_primary = ChatMistralAI(
     max_retries=1,
 )
 
-async def get_response(query: str, context: str) -> str:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a helpful assistant that answers questions based on the provided context.
-        
-Guidelines:
-- Answer only using the information from the context
-- Be concise and accurate
-- If the context doesn't contain the answer, say "I cannot find this information in the provided documents"
-- Do not make up or assume information
-- Cite the relevant parts of context when possible
+tools = [search_and_respond]
+agent = create_agent(mistral_primary, tools)
 
-Context:
-{context}"""),
-        ("human", "{query}")
-    ])
+async def get_rag_answer(
+    namespace: str,
+    query: str,
+    doc_ids: List[str],
+    conversation: dict = None
+) -> str:
     
-    chain = prompt | mistral_primary
-    
-    response = await chain.ainvoke({
-        "context": context,
-        "query": query
+    SYSTEM_PROMPT = """
+You are a knowledgeable assistant that answers questions based on provided documents.
+
+TONE & STYLE
+• Be friendly, polite, and professional
+• Sound natural and human
+• Keep responses simple and easy to understand
+
+IMPORTANT RULES
+• Use search_and_respond tool to find answers from documents
+• Answer must be based solely on retrieved document chunks
+• If no relevant information found, state clearly that information is not available
+• Always cite sources by mentioning document IDs
+
+RESPONSE GUIDELINES
+• Information Found → Provide answer with sources
+• No Information Found → State information not found
+• Use markdown formatting with "-" for steps or bullet points when needed
+TOOL INPUT
+The search_and_respond tool takes the following input:
+    "namespace": "string",
+    "query": "string",
+    "doc_ids": ["string"]
+"""
+
+    user_payload = f"""
+namespace: {namespace}
+user_query: {query}
+document_ids: {doc_ids}
+conversation_history: {conversation if conversation else "No previous conversation"}
+"""
+
+    time_1 = time.time()
+
+    result = await agent.ainvoke({
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_payload}
+        ]
     })
-    
-    return response.content
+
+    time_2 = time.time()
+
+    logger.info(f"Time taken for RAG agent to respond: {time_2 - time_1} seconds")
+
+    return result["messages"][-1].content

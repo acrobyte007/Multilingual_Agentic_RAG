@@ -53,9 +53,8 @@ async def bm25_rerank(
     top_k: int = 5
 ) -> List[str]:
     logger.info(f"Reranking {len(chunks_tokens)} chunks with BM25")
-    logger.info(f"Query tokens before filtering: {query_tokens}")
-    query_tokens = filter_tokens(query_tokens[0])
-    
+    query_tokens = filter_tokens(query_tokens)
+
     filtered_chunks_tokens = [filter_tokens(doc) for doc in chunks_tokens]
     
     doc_lengths = [len(doc) for doc in filtered_chunks_tokens]

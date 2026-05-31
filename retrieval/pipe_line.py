@@ -11,6 +11,6 @@ async def top_k_retrieval(name_space: str, user_query: str, doc_ids: List[str], 
     chunk_ids = search_result["chunk_ids"]
     tokens_list = search_result["tokens_list"]
     query_tokens = tokenize_sentences([user_query])
-    reranked_chunks = await bm25_rerank(query_tokens, chunk_texts, tokens_list, chunk_ids)
+    reranked_chunks = await bm25_rerank(query_tokens[0], chunk_texts, tokens_list, chunk_ids)
     return reranked_chunks
 

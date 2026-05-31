@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from llm_response.agent import get_response
-from retrieval.pipe_line import top_k_retrieval
+from llm_response.agent import get_rag_answer
 from ingestion.pipe_line import DocumentProcessingPipeline
 
 router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
@@ -73,9 +72,7 @@ async def get_rag_response(
     doc_ids: List[str] = Form(...)
 ):
     try:
-        chunks = await top_k_retrieval(namespace, user_query, doc_ids)
-        context = " ".join(chunks)
-        response = await get_response(user_query, context)
+        response = await get_rag_answer(namespace, user_query, doc_ids)
         return {"response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
