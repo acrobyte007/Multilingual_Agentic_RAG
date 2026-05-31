@@ -9,3 +9,4 @@ langdetect
 torch
 transformers
 pinecone
+rank-bm25
