@@ -83,9 +83,20 @@ async def process_text(
     max_words: int = 150,
     overlap: int = 0
 ) -> List[Dict]:
-    return await asyncio.to_thread(
+    chunks = await asyncio.to_thread(
         _process_text_sync,
         text,
         max_words,
         overlap
     )
+    
+    result = []
+    for i, chunk in enumerate(chunks):
+        result.append({
+            "chunk_id": i + 1,
+            "text": chunk["text"],
+            "language": chunk["lang"],
+            "word_count": len(chunk["text"].split())
+        })
+    
+    return result

@@ -8,6 +8,7 @@ from llm_response.agent import get_rag_answer
 from ingestion.pipe_line import DocumentProcessingPipeline
 
 router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
+pipeline_manager = DocumentProcessingPipeline()
 
 class IngestResponse(BaseModel):
     status: str
@@ -18,16 +19,6 @@ class IngestResponse(BaseModel):
     batches_upserted: int
     elapsed_time_seconds: float
 
-class PipelineManager:
-    _pipelines: dict = {}
-    
-    @classmethod
-    def get_pipeline(cls, namespace: str) -> DocumentProcessingPipeline:
-        if namespace not in cls._pipelines:
-            cls._pipelines[namespace] = DocumentProcessingPipeline(namespace=namespace)
-        return cls._pipelines[namespace]
-
-pipeline_manager = PipelineManager()
 
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
@@ -51,8 +42,8 @@ async def ingest_document(
             content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
-        pipeline = pipeline_manager.get_pipeline(namespace)
-        result = await pipeline.ingest_document(
+        result = await pipeline_manager.ingest_document(
+            namespace=namespace,
             file_path=tmp_path,
             document_id=document_id
         )

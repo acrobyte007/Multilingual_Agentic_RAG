@@ -1,15 +1,16 @@
-import logging
+from logger.logger import get_logger
+logger = get_logger(__name__)
 import math
 import re
 import numpy as np
-from typing import List, Tuple
+from typing import List, Dict
 from collections import Counter
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from ingestion.embedding_model import tokenize_sentences
 
 def clean_token(token: str) -> bool:
     if not token or len(token) == 0:
+        return False
+    if not isinstance(token, str):
         return False
     if re.match(r'^[!@#$%^&*()_+\-=\[\]{};:\'",<>./?\\|`~]+$', token):
         return False
@@ -20,9 +21,14 @@ def clean_token(token: str) -> bool:
     return True
 
 def filter_tokens(tokens: List[str]) -> List[str]:
-    return [token for token in tokens if clean_token(token)]
+    if not tokens:
+        return []
+    return [token for token in tokens if isinstance(token, str) and clean_token(token)]
 
 def normalize_scores(scores: List[float]) -> List[float]:
+    if not scores:
+        return []
+    
     scores_array = np.array(scores)
     
     if np.max(scores_array) == np.min(scores_array):
@@ -46,15 +52,22 @@ def normalize_scores(scores: List[float]) -> List[float]:
     return normalized.tolist()
 
 async def bm25_rerank(
-    query_tokens: List[str],
     chunks: List[str],
     chunks_tokens: List[List[str]],
     chunk_ids: List[str],
-    top_k: int = 5
+    chunk_languages: List[str],
+    translated_queries: Dict[str, str]
 ) -> List[str]:
     logger.info(f"Reranking {len(chunks_tokens)} chunks with BM25")
-    query_tokens = filter_tokens(query_tokens)
-
+    
+    query_tokens_by_lang = {}
+    
+    for lang, translated_query in translated_queries.items():
+        if translated_query:
+            translated_tokens = tokenize_sentences([translated_query])
+            query_tokens_by_lang[lang] = filter_tokens(translated_tokens[0])
+            logger.info(f"Loaded {len(query_tokens_by_lang[lang])} tokens for language: {lang}")
+    
     filtered_chunks_tokens = [filter_tokens(doc) for doc in chunks_tokens]
     
     doc_lengths = [len(doc) for doc in filtered_chunks_tokens]
@@ -78,8 +91,14 @@ async def bm25_rerank(
         score = 0
         doc_length = doc_lengths[idx]
         term_freqs = Counter(doc_tokens)
+        chunk_lang = chunk_languages[idx] if idx < len(chunk_languages) else "en"
         
-        for term in query_tokens:
+        if chunk_lang in query_tokens_by_lang:
+            active_query_tokens = query_tokens_by_lang[chunk_lang]
+        else:
+            active_query_tokens = query_tokens_by_lang.get("en", [])
+        
+        for term in active_query_tokens:
             if term not in idf:
                 continue
             tf = term_freqs.get(term, 0)
@@ -91,7 +110,8 @@ async def bm25_rerank(
             score += term_score
         bm25_scores.append(score)
     
-    logger.info(f"BM25 scores range: [{min(bm25_scores):.4f}, {max(bm25_scores):.4f}]")
+    if bm25_scores:
+        logger.info(f"BM25 scores range: [{min(bm25_scores):.4f}, {max(bm25_scores):.4f}]")
     
     normalized_scores = normalize_scores(bm25_scores)
     
@@ -100,14 +120,16 @@ async def bm25_rerank(
         results.append({
             "chunk_id": chunk_ids[i],
             "chunk_text": chunks[i],
-            "bm25_score": normalized_scores[i]
+            "bm25_score": normalized_scores[i] if normalized_scores else 0.0,
+            "language": chunk_languages[i] if i < len(chunk_languages) else "en"
         })
     
     results.sort(key=lambda x: x["bm25_score"], reverse=True)
-    results = results[:top_k]
+    results = results[:5]
     
     reranked_chunks = [r["chunk_text"] for r in results]
     
-    logger.info(f"Reranking complete. Top score: {results[0]['bm25_score']:.4f}")
+    if results:
+        logger.info(f"Reranking complete. Top score: {results[0]['bm25_score']:.4f}, Language: {results[0]['language']}")
     
     return reranked_chunks
