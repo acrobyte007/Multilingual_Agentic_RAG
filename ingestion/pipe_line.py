@@ -17,12 +17,10 @@ class DocumentProcessingPipeline:
     
     def __init__(
         self,
-        namespace: str,
         max_words_per_chunk: int = 150,
         chunk_overlap: int = 20,
         batch_size: int = 100
     ):
-        self.namespace = namespace
         self.max_words_per_chunk = max_words_per_chunk
         self.chunk_overlap = chunk_overlap
         self.batch_size = batch_size
@@ -30,6 +28,7 @@ class DocumentProcessingPipeline:
     
     async def ingest_document(
         self,
+        namespace: str,
         file_path: str,
         document_id: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -38,7 +37,7 @@ class DocumentProcessingPipeline:
         if document_id is None:
             document_id = Path(file_path).stem
         
-        logger.info(f"Starting ingestion for namespace {self.namespace}, document: {document_id}")
+        logger.info(f"Starting ingestion for namespace {namespace}, document: {document_id}")
         
         try:
             raw_text = await extract_text(file_path)
@@ -60,7 +59,7 @@ class DocumentProcessingPipeline:
             logger.info(f"Generated {len(chunks)} chunks")
             
             chunk_texts = [chunk["text"] for chunk in chunks]
-            lang_list = [chunk["lang"] for chunk in chunks]
+            lang_list = [chunk["language"] for chunk in chunks]
             
             embedding_results = embedding_process(chunk_texts)
             
@@ -73,7 +72,7 @@ class DocumentProcessingPipeline:
             logger.info(f"Generated embeddings with dimension {len(vectors[0]) if vectors else 0}")
             
             upsert_result = pinecone_service.upsert(
-                namespace=self.namespace,
+                namespace=namespace,
                 document_id=document_id,
                 vectors=vectors,
                 chunks=chunk_texts,
@@ -85,23 +84,32 @@ class DocumentProcessingPipeline:
             
             result = {
                 "status": "success",
-                "namespace": self.namespace,
+                "namespace": namespace,
                 "document_id": document_id,
                 "file_path": file_path,
                 "num_chunks": len(chunks),
+                "chunk_details": [
+                    {
+                        "chunk_id": chunk["chunk_id"],
+                        "word_count": chunk["word_count"],
+                        "language": chunk["language"]
+                    }
+                    for chunk in chunks
+                ],
                 "batches_upserted": upsert_result["batches"],
                 "elapsed_time_seconds": round(elapsed_time, 2)
             }
             
-            logger.info(f"Successfully ingested {document_id} in namespace {self.namespace} in {elapsed_time:.2f} seconds")
+            logger.info(f"Successfully ingested {document_id} in namespace {namespace} in {elapsed_time:.2f} seconds")
             return result
             
         except Exception as e:
-            logger.error(f"Failed to ingest {document_id} in namespace {self.namespace}: {str(e)}")
+            logger.error(f"Failed to ingest {document_id} in namespace {namespace}: {str(e)}")
             raise
     
     async def ingest_multiple_documents(
         self,
+        namespace: str,
         file_paths: List[str],
         document_ids: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
@@ -121,7 +129,7 @@ class DocumentProcessingPipeline:
             if isinstance(result, Exception):
                 processed_results.append({
                     "status": "failed",
-                    "namespace": self.namespace,
+                    "namespace": namespace,
                     "file_path": file_paths[i],
                     "error": str(result)
                 })
@@ -129,7 +137,7 @@ class DocumentProcessingPipeline:
                 processed_results.append(result)
         
         successful = sum(1 for r in processed_results if r.get("status") == "success")
-        logger.info(f"Batch ingestion complete for namespace {self.namespace}: {successful}/{len(file_paths)} successful")
+        logger.info(f"Batch ingestion complete for namespace {namespace}: {successful}/{len(file_paths)} successful")
         
         return processed_results
 

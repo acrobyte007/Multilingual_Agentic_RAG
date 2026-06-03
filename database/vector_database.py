@@ -71,8 +71,8 @@ class PineconeService:
         namespace: str,
         vector: List[float],
         doc_ids: List[str],
-        top_k: int = 10
-    ) -> Tuple[List[str], List[str], List[List[str]]]:
+        top_k: int
+    ) -> Dict[str, Any]:
 
         all_matches = []
 
@@ -96,11 +96,13 @@ class PineconeService:
         chunk_texts = []
         chunk_ids = []
         tokens_list = []
+        lang_list = []
 
         for match in all_matches:
             metadata = match.get("metadata", {})
             chunk_texts.append(metadata.get("chunk_text", ""))
             chunk_ids.append(match.get("id", ""))
+            lang_list.append(metadata.get("language", "unknown"))
 
             tokens_str = metadata.get("tokens", "")
             try:
@@ -112,7 +114,12 @@ class PineconeService:
 
             tokens_list.append(tokens)
 
-        return {"chunk_texts": chunk_texts, "chunk_ids": chunk_ids, "tokens_list": tokens_list}
+        return {
+            "chunk_texts": chunk_texts, 
+            "chunk_ids": chunk_ids, 
+            "tokens_list": tokens_list,
+            "lang_list": lang_list
+        }
 
     def delete(
         self,
