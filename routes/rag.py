@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from llm_response.agent import get_rag_answer
 from ingestion.pipe_line import DocumentProcessingPipeline
-
+from logger.logger import get_logger
+from cache.conversation import cache
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 pipeline_manager = DocumentProcessingPipeline()
 
@@ -60,10 +62,45 @@ async def ingest_document(
 async def get_rag_response(
     namespace: str = Form(...),
     user_query: str = Form(...),
-    doc_ids: List[str] = Form(...)
+    doc_ids: List[str] = Form(...),
+    user_id: str = Form(...),
+    conversation_id: Optional[str] = Form(None),
 ):
     try:
-        response = await get_rag_answer(namespace, user_query, doc_ids)
-        return {"response": response}
+        if conversation_id is None:
+            conversation_id = await cache.create_conversation(user_id)
+        
+        await cache.add_message(
+            conversation_id=conversation_id,
+            role="user",
+            content=user_query,
+            metadata={"namespace": namespace, "doc_ids": doc_ids}
+        )
+        
+        conversation_history = await cache.get_conversation_history(
+            conversation_id=conversation_id,
+            max_messages=10,
+            format_type="list"
+        )
+        
+        response = await get_rag_answer(
+            namespace=namespace,
+            query=user_query,
+            doc_ids=doc_ids,
+            conversation=conversation_history
+        )
+        
+        await cache.add_message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=response
+        )
+        
+        return {
+            "response": response,
+            "conversation_id": conversation_id
+        }
+        
     except Exception as e:
+        logger.error(f"Error in get_rag_response: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
