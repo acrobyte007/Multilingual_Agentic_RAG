@@ -111,3 +111,4 @@ db_manager = DatabaseManager()
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async for session in db_manager.get_session():
         yield session
+
