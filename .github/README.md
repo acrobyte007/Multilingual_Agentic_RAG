@@ -142,7 +142,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 ### 🛠️ Installation
 
 ```bash
-git clone https://github.com/your-repo/multilingual-rag.git
+git clone https://github.com/acrobyte007/Multilingual_Agentic_RAG
 cd multilingual-rag
 
 pip install -r requirements.txt
