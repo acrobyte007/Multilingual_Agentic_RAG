@@ -1,29 +1,57 @@
-import logging
-import time
+import os
+import gc
 import torch
-import torch.nn.functional as F
-from torch import Tensor
-from transformers import AutoTokenizer, AutoModel
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+from sentence_transformers import SentenceTransformer
+from optimum.onnxruntime import ORTModelForFeatureExtraction
+from transformers import AutoTokenizer
+from onnxruntime.quantization import quantize_dynamic, QuantType
+from logger.logger import get_logger
 
-device = torch.device("cpu")
-tokenizer = AutoTokenizer.from_pretrained('intfloat/multilingual-e5-small')
-model = AutoModel.from_pretrained('intfloat/multilingual-e5-small')
-model.to(device)
-model.eval()
+logger = get_logger(__name__)
 
-def average_pool(last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
-    last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
-    return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+SAVE_DIR = "./miniLM_model"
+ONNX_DIR = "./onnx_model"
+QUANT_MODEL_PATH = "./onnx_model/model_quantized.onnx"
+device = "cpu"
+logger.info("Loading SentenceTransformer model...")
+st_model = SentenceTransformer(MODEL_NAME)
+st_model.save(SAVE_DIR)
+tokenizer = AutoTokenizer.from_pretrained(SAVE_DIR)
+logger.info("Original model saved.")
+logger.info("Exporting to ONNX...")
+ort_model = ORTModelForFeatureExtraction.from_pretrained(
+    SAVE_DIR,
+    export=True
+)
+ort_model.save_pretrained(ONNX_DIR)
+tokenizer.save_pretrained(ONNX_DIR)
+logger.info("ONNX model saved.")
+logger.info("Quantizing model...")
+onnx_fp32 = os.path.join(ONNX_DIR, "model.onnx")
+quantize_dynamic(
+    model_input=onnx_fp32,
+    model_output=QUANT_MODEL_PATH,
+    weight_type=QuantType.QInt8
+)
+
+logger.info("Quantization complete.")
+del st_model
+del ort_model
+gc.collect()
+torch.cuda.empty_cache()
+logger.info("Original model removed from RAM.")
+quant_model = ORTModelForFeatureExtraction.from_pretrained(
+    ONNX_DIR,
+    file_name="model_quantized.onnx"
+)
+tokenizer = AutoTokenizer.from_pretrained(ONNX_DIR)
+logger.info("Quantized model loaded.")
 
 def tokenize_sentences(sentences):
     if isinstance(sentences, str):
         sentences = [sentences]
-    encoded = tokenizer(
-        sentences,
-        padding=True,
-        truncation=True
-    )
+    encoded = tokenizer(sentences, padding=True, truncation=True)
     tokens_list = [
         tokenizer.convert_ids_to_tokens(ids)
         for ids in encoded["input_ids"]
@@ -41,11 +69,13 @@ def embedding_process(sentences):
         truncation=True,
         return_tensors="pt"
     )
-    batch = {k: v.to(device) for k, v in batch.items()}
     with torch.no_grad():
-        outputs = model(**batch)
-        embeddings = average_pool(outputs.last_hidden_state, batch['attention_mask'])
-        embeddings = F.normalize(embeddings, p=2, dim=1)
+        outputs = quant_model(**batch)
+        attention_mask = batch["attention_mask"].unsqueeze(-1)
+        hidden = outputs.last_hidden_state
+        masked = hidden * attention_mask
+        embeddings = masked.sum(dim=1) / attention_mask.sum(dim=1)
+        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
     embeddings = embeddings.cpu().tolist()
     result = {}
     for i in range(len(sentences)):
@@ -54,3 +84,4 @@ def embedding_process(sentences):
             "embedding": embeddings[i]
         }
     return result
+
