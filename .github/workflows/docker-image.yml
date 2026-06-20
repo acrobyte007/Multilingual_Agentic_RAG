@@ -25,4 +25,4 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git remote add hf https://ajoy0071998:${HF_TOKEN}@huggingface.co/spaces/ajoy0071998/multilingual_rag || true
-          git push hf main
+          git push --force hf main
