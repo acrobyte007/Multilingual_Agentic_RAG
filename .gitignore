@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignore images
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Ignore models / binaries
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Optional: data folders
+data/
+outputs/
