@@ -1,87 +1,88 @@
-import os
-import gc
-import torch
-from sentence_transformers import SentenceTransformer
-from optimum.onnxruntime import ORTModelForFeatureExtraction
-from transformers import AutoTokenizer
-from onnxruntime.quantization import quantize_dynamic, QuantType
 from logger.logger import get_logger
-
+import dotenv
+import numpy as np
+import time
+import re
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 logger = get_logger(__name__)
+dotenv.load_dotenv()
 
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-SAVE_DIR = "./miniLM_model"
-ONNX_DIR = "./onnx_model"
-QUANT_MODEL_PATH = "./onnx_model/model_quantized.onnx"
-device = "cpu"
-logger.info("Loading SentenceTransformer model...")
-st_model = SentenceTransformer(MODEL_NAME)
-st_model.save(SAVE_DIR)
-tokenizer = AutoTokenizer.from_pretrained(SAVE_DIR)
-logger.info("Original model saved.")
-logger.info("Exporting to ONNX...")
-ort_model = ORTModelForFeatureExtraction.from_pretrained(
-    SAVE_DIR,
-    export=True
-)
-ort_model.save_pretrained(ONNX_DIR)
-tokenizer.save_pretrained(ONNX_DIR)
-logger.info("ONNX model saved.")
-logger.info("Quantizing model...")
-onnx_fp32 = os.path.join(ONNX_DIR, "model.onnx")
-quantize_dynamic(
-    model_input=onnx_fp32,
-    model_output=QUANT_MODEL_PATH,
-    weight_type=QuantType.QInt8
+embedding_model = GoogleGenerativeAIEmbeddings(
+    model="models/gemini-embedding-001"
 )
 
-logger.info("Quantization complete.")
-del st_model
-del ort_model
-gc.collect()
-torch.cuda.empty_cache()
-logger.info("Original model removed from RAM.")
-quant_model = ORTModelForFeatureExtraction.from_pretrained(
-    ONNX_DIR,
-    file_name="model_quantized.onnx"
-)
-tokenizer = AutoTokenizer.from_pretrained(ONNX_DIR)
-logger.info("Quantized model loaded.")
+BATCH_SIZE = 15
+REQUEST_DELAY =1
+MAX_RETRIES = 3
+
 
 def tokenize_sentences(sentences):
     if isinstance(sentences, str):
         sentences = [sentences]
-    encoded = tokenizer(sentences, padding=True, truncation=True)
-    tokens_list = [
-        tokenizer.convert_ids_to_tokens(ids)
-        for ids in encoded["input_ids"]
-    ]
-    return tokens_list
+    return [s.strip().split() for s in sentences]
+
+
+def extract_retry_time(error_msg):
+    match = re.search(r"retry in (\d+)", str(error_msg))
+    if match:
+        return int(match.group(1))
+    return 60
+
+
+def embed_batch(batch_sentences, batch_id):
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.info(f"[BATCH {batch_id}] Attempt {attempt} | size={len(batch_sentences)}")
+            vectors = embedding_model.embed_documents(batch_sentences)
+            logger.info(f"[BATCH {batch_id}] SUCCESS")
+            return vectors
+
+        except Exception as e:
+            logger.info(f"[BATCH {batch_id}] ERROR: {e}")
+            if "429" in str(e):
+                wait_time = extract_retry_time(str(e))
+                logger.info(f"[BATCH {batch_id}] RATE LIMIT → sleeping {wait_time}s")
+                time.sleep(wait_time)
+            else:
+                raise e
+
+    raise Exception(f"[BATCH {batch_id}] FAILED after retries")
 
 
 def embedding_process(sentences):
     if isinstance(sentences, str):
         sentences = [sentences]
+
+    total = len(sentences)
+    logger.info(f"[INFO] Total sentences: {total}")
+
     tokens_list = tokenize_sentences(sentences)
-    batch = tokenizer(
-        sentences,
-        padding=True,
-        truncation=True,
-        return_tensors="pt"
-    )
-    with torch.no_grad():
-        outputs = quant_model(**batch)
-        attention_mask = batch["attention_mask"].unsqueeze(-1)
-        hidden = outputs.last_hidden_state
-        masked = hidden * attention_mask
-        embeddings = masked.sum(dim=1) / attention_mask.sum(dim=1)
-        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-    embeddings = embeddings.cpu().tolist()
+    all_vectors = []
+
+    batch_id = 0
+
+    for i in range(0, total, BATCH_SIZE):
+        batch_id += 1
+        batch = sentences[i:i + BATCH_SIZE]
+
+        logger.info(f"[INFO] Batch {batch_id} range {i}-{i+len(batch)-1}")
+
+        vectors = embed_batch(batch, batch_id)
+        all_vectors.extend(vectors)
+
+        time.sleep(REQUEST_DELAY)
+
+    vectors = np.array(all_vectors)
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    normalized = vectors / norms
+
     result = {}
-    for i in range(len(sentences)):
+
+    for i in range(total):
         result[i] = {
             "tokens": tokens_list[i],
-            "embedding": embeddings[i]
+            "embedding": normalized[i].tolist()
         }
+
     return result
 
