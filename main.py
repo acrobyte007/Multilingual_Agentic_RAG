@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
+from database.database import db_manager
 from cache.conversation import cache
 from routes.rag import router as rag_router
 from logger.logger import get_logger
@@ -27,13 +27,13 @@ async def cleanup_expired_conversations():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(cleanup_expired_conversations())
+    await db_manager.create_tables()
     logger.info("Started cleanup task for expired conversations")
-
     try:
         yield
+        await db_manager.close_all()
     finally:
         task.cancel()
-
         try:
             await task
         except asyncio.CancelledError:

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 import os
 import dotenv
+from database.database_models import Base
 from logger.logger import get_logger, log_info, log_error, log_exception
 
 dotenv.load_dotenv()
@@ -22,12 +23,11 @@ class DatabaseManager:
             return
         
         database_url = os.getenv("DB_URL")
-        pool_size = int(os.getenv("DB_POOL_SIZE", "20"))
-        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-        pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
-        pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "3600"))
-        pool_pre_ping = os.getenv("DB_POOL_PRE_PING", "True").lower() == "true"
-        
+        pool_size = 20
+        max_overflow = 10
+        pool_timeout = 30
+        pool_recycle = 3600
+        pool_pre_ping = True
         self.engine = create_async_engine(
             database_url,
             echo=False,
@@ -97,7 +97,11 @@ class DatabaseManager:
         except Exception as e:
             log_error(logger, f"Health check failed: {str(e)}")
             return False
-    
+    async def create_tables(self):
+        await self.initialize()
+        async with self.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            
     async def close_all(self):
         if self.engine:
             await self.engine.dispose()
@@ -108,7 +112,10 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    async for session in db_manager.get_session():
-        yield session
 
+
+
+
+
+
+    
