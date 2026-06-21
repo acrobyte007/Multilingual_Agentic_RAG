@@ -24,7 +24,7 @@ class IngestResponse(BaseModel):
 
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
-    namespace: str = Form(...),
+    user_id: str = Form(...),
     file: UploadFile = File(...),
     document_id: Optional[str] = Form(None)
 ):
@@ -45,7 +45,7 @@ async def ingest_document(
             tmp_file.write(content)
             tmp_path = tmp_file.name
         result = await pipeline_manager.ingest_document(
-            namespace=namespace,
+            namespace=user_id,
             file_path=tmp_path,
             document_id=document_id
         )
@@ -60,7 +60,6 @@ async def ingest_document(
 
 @router.post("/api/v1/rag/response")
 async def get_rag_response(
-    namespace: str = Form(...),
     user_query: str = Form(...),
     doc_ids: List[str] = Form(...),
     user_id: str = Form(...),
@@ -74,7 +73,7 @@ async def get_rag_response(
             conversation_id=conversation_id,
             role="user",
             content=user_query,
-            metadata={"namespace": namespace, "doc_ids": doc_ids}
+            metadata={"namespace": user_id, "doc_ids": doc_ids}
         )
         
         conversation_history = await cache.get_conversation_history(
@@ -84,7 +83,7 @@ async def get_rag_response(
         )
         
         response = await get_rag_answer(
-            namespace=namespace,
+            namespace=user_id,
             query=user_query,
             doc_ids=doc_ids,
             conversation=conversation_history
