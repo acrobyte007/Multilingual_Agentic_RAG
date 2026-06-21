@@ -1,88 +1,95 @@
-from logger.logger import get_logger
-import dotenv
-import numpy as np
+import os
 import time
 import re
+import numpy as np
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from logger.logger import get_logger
+
 logger = get_logger(__name__)
-dotenv.load_dotenv()
-
-embedding_model = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001"
-)
-
-BATCH_SIZE = 15
-REQUEST_DELAY =1
-MAX_RETRIES = 3
 
 
-def tokenize_sentences(sentences):
-    if isinstance(sentences, str):
-        sentences = [sentences]
-    return [s.strip().split() for s in sentences]
+class EmbeddingService:
 
+    def __init__(self):
+        self.model = None
+        self.BATCH_SIZE = 15
+        self.REQUEST_DELAY = 1
+        self.MAX_RETRIES = 3
+        self._initialized = False
 
-def extract_retry_time(error_msg):
-    match = re.search(r"retry in (\d+)", str(error_msg))
-    if match:
-        return int(match.group(1))
-    return 60
+    async def initialize(self):
+        if self._initialized:
+            return
+        self.model = GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001"
+        )
+        self._initialized = True
+        logger.info("EmbeddingService initialized")
 
+    def tokenize_sentences(self, sentences):
+        if isinstance(sentences, str):
+            sentences = [sentences]
+        return [s.strip().split() for s in sentences]
 
-def embed_batch(batch_sentences, batch_id):
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            logger.info(f"[BATCH {batch_id}] Attempt {attempt} | size={len(batch_sentences)}")
-            vectors = embedding_model.embed_documents(batch_sentences)
-            logger.info(f"[BATCH {batch_id}] SUCCESS")
-            return vectors
+    def extract_retry_time(self, error_msg):
+        match = re.search(r"retry in (\d+)", str(error_msg))
+        return int(match.group(1)) if match else 60
 
-        except Exception as e:
-            logger.info(f"[BATCH {batch_id}] ERROR: {e}")
-            if "429" in str(e):
-                wait_time = extract_retry_time(str(e))
-                logger.info(f"[BATCH {batch_id}] RATE LIMIT → sleeping {wait_time}s")
-                time.sleep(wait_time)
-            else:
-                raise e
+    def embed_batch(self, batch_sentences, batch_id):
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                logger.info(f"[BATCH {batch_id}] Attempt {attempt} | size={len(batch_sentences)}")
+                vectors = self.model.embed_documents(batch_sentences)
+                logger.info(f"[BATCH {batch_id}] SUCCESS")
+                return vectors
 
-    raise Exception(f"[BATCH {batch_id}] FAILED after retries")
+            except Exception as e:
+                logger.error(f"[BATCH {batch_id}] ERROR: {e}")
 
+                if "429" in str(e):
+                    wait_time = self.extract_retry_time(str(e))
+                    logger.info(f"[BATCH {batch_id}] RATE LIMIT → sleeping {wait_time}s")
+                    time.sleep(wait_time)
+                else:
+                    raise e
 
-def embedding_process(sentences):
-    if isinstance(sentences, str):
-        sentences = [sentences]
+        raise Exception(f"[BATCH {batch_id}] FAILED after retries")
 
-    total = len(sentences)
-    logger.info(f"[INFO] Total sentences: {total}")
+    def embed(self, sentences):
+        if isinstance(sentences, str):
+            sentences = [sentences]
 
-    tokens_list = tokenize_sentences(sentences)
-    all_vectors = []
+        total = len(sentences)
+        logger.info(f"[INFO] Total sentences: {total}")
 
-    batch_id = 0
+        tokens_list = self.tokenize_sentences(sentences)
+        all_vectors = []
 
-    for i in range(0, total, BATCH_SIZE):
-        batch_id += 1
-        batch = sentences[i:i + BATCH_SIZE]
+        batch_id = 0
 
-        logger.info(f"[INFO] Batch {batch_id} range {i}-{i+len(batch)-1}")
+        for i in range(0, total, self.BATCH_SIZE):
+            batch_id += 1
+            batch = sentences[i:i + self.BATCH_SIZE]
 
-        vectors = embed_batch(batch, batch_id)
-        all_vectors.extend(vectors)
+            logger.info(f"[INFO] Batch {batch_id} range {i}-{i+len(batch)-1}")
 
-        time.sleep(REQUEST_DELAY)
+            vectors = self.embed_batch(batch, batch_id)
+            all_vectors.extend(vectors)
 
-    vectors = np.array(all_vectors)
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    normalized = vectors / norms
+            time.sleep(self.REQUEST_DELAY)
 
-    result = {}
+        vectors = np.array(all_vectors)
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        normalized = vectors / norms
 
-    for i in range(total):
-        result[i] = {
-            "tokens": tokens_list[i],
-            "embedding": normalized[i].tolist()
-        }
+        result = {}
 
-    return result
+        for i in range(total):
+            result[i] = {
+                "tokens": tokens_list[i],
+                "embedding": normalized[i].tolist()
+            }
 
+        return result
+
+embedding_service = EmbeddingService()

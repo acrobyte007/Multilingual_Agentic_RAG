@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ingestion.extraction import extract_text
 from ingestion.cleaning_chunking import process_text
-from ingestion.embedding_model import embedding_process
+from ingestion.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 
 logging.basicConfig(level=logging.INFO)
@@ -15,16 +15,11 @@ logger = logging.getLogger(__name__)
 
 class DocumentProcessingPipeline:
     
-    def __init__(
-        self,
-        max_words_per_chunk: int = 150,
-        chunk_overlap: int = 20,
-        batch_size: int = 100
-    ):
-        self.max_words_per_chunk = max_words_per_chunk
-        self.chunk_overlap = chunk_overlap
-        self.batch_size = batch_size
-        pinecone_service.batch_size = batch_size
+    def __init__(self):
+        self.max_words_per_chunk = 150
+        self.chunk_overlap = 20
+        self.batch_size = 100
+        pinecone_service.batch_size = 100
     
     async def ingest_document(
         self,
@@ -61,7 +56,7 @@ class DocumentProcessingPipeline:
             chunk_texts = [chunk["text"] for chunk in chunks]
             lang_list = [chunk["language"] for chunk in chunks]
             
-            embedding_results = embedding_process(chunk_texts)
+            embedding_results = embedding_service.embedding_process(chunk_texts)
             
             vectors = []
             tokens_list = []
@@ -142,16 +137,4 @@ class DocumentProcessingPipeline:
         return processed_results
 
 
-async def process_document(
-    namespace: str,
-    file_path: str,
-    document_id: Optional[str] = None,
-    max_words_per_chunk: int = 150,
-    chunk_overlap: int = 20
-) -> Dict[str, Any]:
-    pipeline = DocumentProcessingPipeline(
-        namespace=namespace,
-        max_words_per_chunk=max_words_per_chunk,
-        chunk_overlap=chunk_overlap
-    )
-    return await pipeline.ingest_document(file_path, document_id)
+pipeline = DocumentProcessingPipeline()

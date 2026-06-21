@@ -5,12 +5,12 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from llm_response.agent import get_rag_answer
-from ingestion.pipe_line import DocumentProcessingPipeline
+from ingestion.pipe_line import pipeline
 from logger.logger import get_logger
 from cache.conversation import cache
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
-pipeline_manager = DocumentProcessingPipeline()
+
 
 class IngestResponse(BaseModel):
     status: str
@@ -44,7 +44,7 @@ async def ingest_document(
             content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
-        result = await pipeline_manager.ingest_document(
+        result = await pipeline.ingest_document(
             namespace=user_id,
             file_path=tmp_path,
             document_id=document_id
