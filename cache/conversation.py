@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
 import asyncio
+import uuid
 
 class ConversationCache:
     def __init__(self, ttl_hours: int = 2):
@@ -32,7 +33,7 @@ class ConversationCache:
         async with self._lock:
             self._clean_expired()
             if conversation_id is None:
-                conversation_id = f"{user_id}_{datetime.now().timestamp()}"
+                conversation_id = str(uuid.uuid4())
             if conversation_id in self._conversations:
                 raise ValueError(f"Conversation {conversation_id} already exists")
             conversation_data = {
