@@ -1,41 +1,44 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+
 from database.database import db_manager
 from cache.conversation import cache
+from ingestion.embedding_model import embedding_service
+from database.vector_database import pinecone_service
+
 from routes.rag import router as rag_router
 from logger.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-async def cleanup_expired_conversations():
-    try:
-        while True:
-            await asyncio.sleep(3600)
-
-            removed = await cache.clear_expired()
-
-            if removed > 0:
-                logger.info(f"Cleanup job removed {removed} expired conversations")
-
-    except asyncio.CancelledError:
-        logger.info("Cleanup task received shutdown signal")
-        raise
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(cleanup_expired_conversations())
-    await db_manager.create_tables()
+    logger.info("Starting application initialization...")
+
+    await db_manager.initialize()
+    logger.info("Database initialized")
+    await embedding_service.initialize()
+    logger.info("Embedding service initialized")
+    pinecone_service.initialize()
+    logger.info("Pinecone service ready")
+    cleanup_task = asyncio.create_task(
+        cache.cleanup_expired_conversations()
+    )
     logger.info("Started cleanup task for expired conversations")
+
     try:
         yield
-        await db_manager.close_all()
     finally:
-        task.cancel()
+        logger.info("Shutting down application...")
+
+        await db_manager.close_all()
+        logger.info("Database connections closed")
+
+        cleanup_task.cancel()
         try:
-            await task
+            await cleanup_task
         except asyncio.CancelledError:
             logger.info("Cleanup task stopped cleanly")
 

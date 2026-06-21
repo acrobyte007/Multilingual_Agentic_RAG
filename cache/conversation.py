@@ -159,5 +159,16 @@ class ConversationCache:
                 "total_messages": total_messages,
                 "ttl_hours": self.ttl_seconds // 3600
             }
+    
+    async def cleanup_expired_conversations(self):
+        try:
+            while True:
+                await asyncio.sleep(3600)
+                removed = await cache.clear_expired()
+                if removed > 0:
+                    logger.info(f"Cleanup job removed {removed} expired conversations")
+        except asyncio.CancelledError:
+            logger.info("Cleanup task received shutdown signal")
+            raise
 
 cache = ConversationCache()

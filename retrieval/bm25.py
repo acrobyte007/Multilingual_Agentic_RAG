@@ -5,7 +5,7 @@ import re
 import numpy as np
 from typing import List, Dict
 from collections import Counter
-from ingestion.embedding_model import tokenize_sentences
+from ingestion.embedding_model import embedding_service
 
 def clean_token(token: str) -> bool:
     if not token or len(token) == 0:
@@ -64,7 +64,7 @@ async def bm25_rerank(
     
     for lang, translated_query in translated_queries.items():
         if translated_query:
-            translated_tokens = tokenize_sentences([translated_query])
+            translated_tokens = embedding_service.tokenize_sentences([translated_query])
             query_tokens_by_lang[lang] = filter_tokens(translated_tokens[0])
             logger.info(f"Loaded {len(query_tokens_by_lang[lang])} tokens for language: {lang}")
     
