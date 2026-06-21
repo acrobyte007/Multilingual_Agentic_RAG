@@ -69,10 +69,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ### 2. Embedding Layer
 
-* **Model:** `intfloat/multilingual-e5-small`
-* **Embedding Size:** 384 dimensions
-* **Pooling:** Mean pooling with attention masking
-* **Normalization:** L2 normalization (for cosine similarity)
+* **Model:** `gemini-embedding-001`
 
 ---
 
@@ -155,9 +152,9 @@ pip install -r requirements.txt
 Create a `.env` file:
 
 ```env
-PINECONE_API_KEY=your_pinecone_key
-PINECONE_ENVIRONMENT=your_environment
-MISTRAL_API_KEY=your_mistral_key
+PINECONE_API_KEY
+GOOGLE_API_KEY
+MISTRAL_API_KEY
 ```
 
 ---
