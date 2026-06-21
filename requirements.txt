@@ -11,3 +11,5 @@ rank-bm25
 langchain
 langchain-mistralai
 langchain-google-genai
+sqlalchemy
+asyncpg
