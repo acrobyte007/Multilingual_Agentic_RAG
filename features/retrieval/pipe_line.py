@@ -2,8 +2,8 @@ import logging
 from typing import List
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from retrieval.semantic_search import retrieve
-from retrieval.bm25 import bm25_rerank
+from features.retrieval.semantic_search import retrieve
+from features.retrieval.bm25 import bm25_rerank
 
 async def top_k_retrieval(name_space: str, user_query: str, doc_ids: List[str], translated_queries: dict = None):
     search_result = await retrieve(name_space, user_query, doc_ids, top_k=30)

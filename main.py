@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from database.database import db_manager
 from cache.conversation import cache
-from ingestion.embedding_model import embedding_service
+from features.ingestion.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 
 from routes.rag import router as rag_router

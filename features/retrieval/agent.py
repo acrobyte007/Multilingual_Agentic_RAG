@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
-from retrieval.pipe_line import top_k_retrieval
+from features.retrieval.pipe_line import top_k_retrieval
 from dotenv import load_dotenv
 load_dotenv()
 

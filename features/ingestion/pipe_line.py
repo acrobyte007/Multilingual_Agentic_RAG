@@ -4,9 +4,9 @@ import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from ingestion.extraction import extract_text
-from ingestion.cleaning_chunking import process_text
-from ingestion.embedding_model import embedding_service
+from features.ingestion.extraction import extract_text
+from features.ingestion.cleaning_chunking import process_text
+from features.ingestion.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 
 logging.basicConfig(level=logging.INFO)
