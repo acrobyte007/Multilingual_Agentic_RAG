@@ -5,7 +5,7 @@ import re
 import numpy as np
 from typing import List, Dict
 from collections import Counter
-from ingestion.embedding_model import embedding_service
+from features.ingestion.embedding_model import embedding_service
 
 def clean_token(token: str) -> bool:
     if not token or len(token) == 0:
