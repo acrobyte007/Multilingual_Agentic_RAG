@@ -69,7 +69,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ### 2. Embedding Layer
 
-* **Model:** `gemini-embedding-001`
+* **Model:** `gemini-embedding-001(Previously it was multilingual e5-small)`
 
 ---
 
