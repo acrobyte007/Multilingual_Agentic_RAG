@@ -15,4 +15,5 @@ sqlalchemy
 asyncpg
 pydantic[email]
 passlib[bcrypt]
-argon2-cffi passlib
+argon2-cffi
+passlib
