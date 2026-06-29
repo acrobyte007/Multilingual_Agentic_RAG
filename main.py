@@ -8,7 +8,7 @@ from database.vector_database import pinecone_service
 
 from routes.rag import router as rag_router
 from routes.auth import router as auth_router
-
+from routes.docs import router as docs_router
 from logger.logger import get_logger
 logger = get_logger(__name__)
 
@@ -78,3 +78,4 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(rag_router)
+app.include_router(docs_router)

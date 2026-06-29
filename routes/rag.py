@@ -4,8 +4,11 @@ from typing import List, Optional
 import tempfile
 import os
 from pathlib import Path
+from datetime import datetime
 from features.retrieval.agent import get_rag_answer
 from features.auth.dependencies import get_current_user
+from database.database_models import documents
+from database.database import db_manager
 from fastapi import Depends
 from features.ingestion.pipe_line import pipeline
 from logger.logger import get_logger
@@ -19,7 +22,7 @@ router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 class IngestResponse(BaseModel):
     status: str
     user_id: str
-    document_id: str
+    document_id:int
     file_path: str
     num_chunks: int
     batches_upserted: int
@@ -40,10 +43,10 @@ class QueryResponse(BaseModel):
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
     file: UploadFile = File(...),
-    document_id: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
-    user_id = str(current_user["sub"])
+    user_id = int(current_user["sub"])
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -64,12 +67,40 @@ async def ingest_document(
             tmp_file.write(content)
             tmp_path = tmp_file.name
 
-        result = await pipeline.ingest_document(
-            namespace=user_id,
-            file_path=tmp_path,
-            document_id=document_id
-        )
+        async with db_manager.connect() as session:
 
+            new_doc = documents(
+                file_name=file.filename,
+                file_type=file_ext,
+                file_size=os.path.getsize(tmp_path),
+                chunks=0,
+                primary_language="unknown",
+                user_id=user_id,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+
+            session.add(new_doc)
+            await session.flush()
+
+            document_id = new_doc.id
+
+            result = await pipeline.ingest_document(
+                namespace=str(user_id),
+                file_path=tmp_path,
+                document_id=document_id
+            )
+
+            new_doc.chunks = result.get("num_chunks", 0)
+
+            chunk_details = result.get("chunk_details", [])
+            if chunk_details:
+                new_doc.primary_language = chunk_details[0].get("language", "unknown")
+
+            await session.commit()
+
+        result["document_id"] = document_id
+        logger.info(f"{IngestResponse(**result)}")
         return IngestResponse(**result)
 
     except Exception as e:
@@ -78,7 +109,6 @@ async def ingest_document(
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
-
 
 @router.post("/response", response_model=QueryResponse)
 async def get_rag_response(

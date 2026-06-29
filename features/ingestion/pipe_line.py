@@ -68,7 +68,7 @@ class DocumentProcessingPipeline:
             
             upsert_result = pinecone_service.upsert(
                 namespace=namespace,
-                document_id=document_id,
+                document_id=str(document_id),
                 vectors=vectors,
                 chunks=chunk_texts,
                 lang_list=lang_list,
@@ -80,7 +80,7 @@ class DocumentProcessingPipeline:
             result = {
                 "status": "success",
                 "user_id": namespace,
-                "document_id": document_id,
+                "document_id": str(document_id),
                 "file_path": file_path,
                 "num_chunks": len(chunks),
                 "chunk_details": [
