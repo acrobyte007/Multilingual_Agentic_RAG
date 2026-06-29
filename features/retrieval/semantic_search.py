@@ -6,7 +6,7 @@ from database.vector_database import pinecone_service
 from features.ingestion.embedding_model import embedding_service
 async def retrieve(name_space: str, user_query: str, doc_ids: List[str], top_k: int = 10):
         logger.info(f"Retrieving for namespace: {name_space}, query: {user_query}, doc_ids: {doc_ids}")
-        vector = embedding_service.embedding_process(user_query)
+        vector = embedding_service.embed(user_query)
         logger.info(f"Generated vector of length {len(vector)}")
         search_result=pinecone_service.search(
             namespace=name_space,

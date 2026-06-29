@@ -5,9 +5,11 @@ import tempfile
 import os
 from pathlib import Path
 from features.retrieval.agent import get_rag_answer
+from features.auth.dependencies import get_current_user
+from fastapi import Depends
 from features.ingestion.pipe_line import pipeline
 from logger.logger import get_logger
-from cache.conversation import cache
+from cache.conversation_save import cache
 
 logger = get_logger(__name__)
 
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 
 class IngestResponse(BaseModel):
     status: str
-    namespace: str
+    user_id: str
     document_id: str
     file_path: str
     num_chunks: int
@@ -25,7 +27,6 @@ class IngestResponse(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    user_id: str
     doc_ids: List[str]
     query: str
     conversation_id: Optional[str] = None
@@ -38,10 +39,11 @@ class QueryResponse(BaseModel):
 
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
-    user_id: str = Form(...),
     file: UploadFile = File(...),
-    document_id: Optional[str] = Form(None)
+    document_id: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user)
 ):
+    user_id = str(current_user["sub"])
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -79,18 +81,22 @@ async def ingest_document(
 
 
 @router.post("/response", response_model=QueryResponse)
-async def get_rag_response(request: QueryRequest):
+async def get_rag_response(
+    request: QueryRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = str(current_user["sub"])
     try:
         conversation_id = request.conversation_id
 
         if conversation_id is None:
-            conversation_id = await cache.create_conversation(request.user_id)
+            conversation_id = await cache.create_conversation(user_id)
 
         await cache.add_message(
             conversation_id=conversation_id,
             role="user",
             content=request.query,
-            metadata={"namespace": request.user_id, "doc_ids": request.doc_ids}
+            metadata={"namespace":user_id, "doc_ids": request.doc_ids}
         )
 
         conversation_history = await cache.get_conversation_history(
@@ -100,7 +106,7 @@ async def get_rag_response(request: QueryRequest):
         )
 
         response = await get_rag_answer(
-            namespace=request.user_id,
+            namespace=user_id,
             query=request.query,
             doc_ids=request.doc_ids,
             conversation=conversation_history

@@ -56,7 +56,7 @@ class DocumentProcessingPipeline:
             chunk_texts = [chunk["text"] for chunk in chunks]
             lang_list = [chunk["language"] for chunk in chunks]
             
-            embedding_results = embedding_service.embedding_process(chunk_texts)
+            embedding_results = embedding_service.embed(chunk_texts)
             
             vectors = []
             tokens_list = []
@@ -79,7 +79,7 @@ class DocumentProcessingPipeline:
             
             result = {
                 "status": "success",
-                "namespace": namespace,
+                "user_id": namespace,
                 "document_id": document_id,
                 "file_path": file_path,
                 "num_chunks": len(chunks),

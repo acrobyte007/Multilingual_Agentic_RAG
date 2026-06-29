@@ -48,6 +48,7 @@ class conversations(Base):
     __tablename__ = 'conversations'
 
     id = Column(Integer, primary_key=True, index=True)
+    conversation_uuid = Column(String,unique=True,index=True,nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'))
     meta_data = Column(JSON, nullable=True)
 
@@ -59,10 +60,14 @@ class messages(Base):
     __tablename__ = 'messages'
 
     id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey('conversations.id'))
+    conversation_id = Column(
+        String,
+        ForeignKey('conversations.conversation_uuid'),
+        index=True,
+        nullable=False
+    )
     role = Column(String)
     content = Column(String)
     meta_data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=func.now())
-
     conversation = relationship("conversations", back_populates="messages")
