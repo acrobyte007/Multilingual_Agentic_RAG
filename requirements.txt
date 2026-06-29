@@ -17,3 +17,4 @@ pydantic[email]
 passlib[bcrypt]
 argon2-cffi
 passlib
+python-jose[cryptography]
