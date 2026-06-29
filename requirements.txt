@@ -13,3 +13,6 @@ langchain-mistralai
 langchain-google-genai
 sqlalchemy
 asyncpg
+pydantic[email]
+passlib[bcrypt]
+argon2-cffi passlib
