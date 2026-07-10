@@ -23,7 +23,7 @@ class PineconeService:
             return
 
         api_key = os.getenv("PINECONE_API_KEY")
-        index_name = "index"
+        index_name = "google"
 
         if not api_key:
             raise Exception("Missing PINECONE_API_KEY")

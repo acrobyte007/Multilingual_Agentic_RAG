@@ -1,10 +1,6 @@
-from sqlalchemy import (
-    Column, Integer, String, Date, Boolean, ForeignKey,
-    Text, DECIMAL, TIMESTAMP, UniqueConstraint, Index, Enum,
-    DateTime, CheckConstraint, Time,JSON
-)
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey ,DateTime,JSON
 from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.dialects.postgresql import JSONB
+
 from sqlalchemy.sql import func
 
 Base = declarative_base()
@@ -32,7 +28,7 @@ class documents(Base):
     __tablename__ = 'documents'
 
     id = Column(Integer, primary_key=True, index=True)
-    file_name = Column(String, unique=True, index=True)
+    file_name = Column(String)
     file_type = Column(String)
     file_size = Column(Integer)
     chunks = Column(Integer)

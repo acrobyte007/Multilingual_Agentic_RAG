@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class DocumentProcessingPipeline:
     
     def __init__(self):
-        self.max_words_per_chunk = 150
-        self.chunk_overlap = 20
+        self.max_words_per_chunk = 250
+        self.chunk_overlap = 50
         self.batch_size = 100
         pinecone_service.batch_size = 100
     
