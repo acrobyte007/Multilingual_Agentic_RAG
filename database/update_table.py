@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy import text
 from database.database import db_manager
 from logger.logger import get_logger
-
+from database.database_models import Base
 logger = get_logger(__name__)
 
 
@@ -34,6 +34,24 @@ async def clean_all_data():
         
         logger.info("All tables cleaned and sequences reset!")
 
+async def drop_all_tables():
+    """
+    Drop all database tables.
+    """
+    await db_manager.initialize()
+
+    async with db_manager.engine.begin() as conn:
+        logger.info("Dropping all tables...")
+        await conn.run_sync(Base.metadata.drop_all)
+        logger.info("All tables dropped successfully!")
+
+async def create_all_tables():
+    await db_manager.initialize()
+
+    async with db_manager.engine.begin() as conn:
+        logger.info("Creating tables...")
+        await conn.run_sync(Base.metadata.create_all)
+        logger.info("All tables created successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(clean_all_data())
+    asyncio.run(create_all_tables())
