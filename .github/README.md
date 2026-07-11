@@ -243,11 +243,3 @@ Contributions are welcome! Please open an issue or submit a pull request.
 MIT License
 
 ---
-
-## 🙌 Acknowledgements
-
-* Multilingual E5 embeddings
-* Pinecone vector database
-* Mistral AI for LLM capabilities
-
----
