@@ -6,7 +6,7 @@ from pathlib import Path
 
 from features.ingestion.extraction import extract_text
 from features.ingestion.cleaning_chunking import process_text
-from features.ingestion.embedding_model import embedding_service
+from services.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 
 logging.basicConfig(level=logging.INFO)

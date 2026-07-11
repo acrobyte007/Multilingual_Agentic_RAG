@@ -19,3 +19,4 @@ argon2-cffi
 passlib
 python-jose[cryptography]
 redis
+boto3
