@@ -61,15 +61,15 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 #### ✂️ Intelligent Chunking
 
-* Sentence-aware splitting
-* Default chunk size: **150 words**
-* Default overlap: **20 words**
+* Recursive chunking with overlap
+* Default chunk size: **250 words**
+* Default overlap: **50 words**
 
 ---
 
 ### 2. Embedding Layer
 
-* **Model:** `gemini-embedding-001(Previously it was multilingual e5-small)`
+* **Model:** `gemini-embedding-001`
 
 ---
 
@@ -89,6 +89,33 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 * **Filtering Support:**
 
   * Document-level filtering during retrieval
+
+---
+
+### 4. Caching Layer (Redis)
+
+#### Architecture
+
+**Primary Storage:** Redis for fast read/write operations
+**Persistence:** PostgreSQL for permanent storage (async background writes)
+**TTL:** 2 hours for conversation cache
+**Auto-cleanup:** Expired conversations removed after 1 hour
+
+#### Key Features
+
+**Write-through caching:** All writes go to Redis first, then asynchronously to PostgreSQL
+**Batch database writes:** Configurable batch size (default: 50) for optimal performance
+**Message tracking:** Tracks which messages are saved to database to prevent duplicates
+**Background workers:** Async workers handle database persistence without blocking main flow
+
+#### Redis Data Structures
+
+| Structure | Purpose |
+| Hash | Conversation metadata |
+| Sorted Set | Messages ordered by timestamp |
+| List | User's conversation IDs |
+| Set | Track saved messages |
+| String | Conversation save status (pending/saved/restored) |
 
 ---
 
