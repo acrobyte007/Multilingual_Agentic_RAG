@@ -96,17 +96,17 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 #### Architecture
 
-**Primary Storage:** Redis for fast read/write operations
-**Persistence:** PostgreSQL for permanent storage (async background writes)
-**TTL:** 2 hours for conversation cache
-**Auto-cleanup:** Expired conversations removed after 1 hour
+* Primary Storage:  Redis for fast read/write operations
+* Persistence: PostgreSQL for permanent storage (async background writes)
+* TTL: 2 hours for conversation cache
+* Auto-cleanup: Expired conversations removed after 1 hour
 
 #### Key Features
 
-**Write-through caching:** All writes go to Redis first, then asynchronously to PostgreSQL
-**Batch database writes:** Configurable batch size (default: 50) for optimal performance
-**Message tracking:** Tracks which messages are saved to database to prevent duplicates
-**Background workers:** Async workers handle database persistence without blocking main flow
+* Write-through caching: All writes go to Redis first, then asynchronously to PostgreSQL
+* Batch database writes: Configurable batch size (default: 50) for optimal performance
+* Message tracking: Tracks which messages are saved to database to prevent duplicates
+* Background workers: Async workers handle database persistence without blocking main flow
 
 #### Redis Data Structures
 
