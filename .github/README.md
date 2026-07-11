@@ -59,7 +59,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 * Special character removal
 * Whitespace cleanup
 
-#### ✂️ Intelligent Chunking
+#### ✂️ Chunking
 
 * Recursive chunking with overlap
 * Default chunk size: **250 words**
@@ -108,15 +108,6 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 * Message tracking: Tracks which messages are saved to database to prevent duplicates
 * Background workers: Async workers handle database persistence without blocking main flow
 
-#### Redis Data Structures
-
-| Structure | Purpose |
-| Hash | Conversation metadata |
-| Sorted Set | Messages ordered by timestamp |
-| List | User's conversation IDs |
-| Set | Track saved messages |
-| String | Conversation save status (pending/saved/restored) |
-
 ---
 
 ### 4. Search & Retrieval Pipeline
@@ -154,15 +145,6 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ## ⚙️ Local Setup
 
-### 📋 Prerequisites
-
-* Python **3.12+**
-* LibreOffice (required for `.doc` files)
-* Pinecone account (vector DB)
-* Mistral AI API key
-
----
-
 ### 🛠️ Installation
 
 ```bash
@@ -182,6 +164,14 @@ Create a `.env` file:
 PINECONE_API_KEY
 GOOGLE_API_KEY
 MISTRAL_API_KEY
+REDIS_PASSWORD
+REDIS_PORT
+REDIS_HOST
+SECRET_KEY
+ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES
+GOOGLE_CLIENT_ID
+GOOGLE_API_KEY
 ```
 
 ---
@@ -226,20 +216,6 @@ python main.py
 
 * 🔊 Voice-based multilingual queries
 * 📱 Web UI / dashboard
-* 🧠 Fine-tuned domain-specific embeddings
 * 📚 Support for more languages
-* ⚡ Faster indexing with batch pipelines
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
-
----
-
-## 📄 License
-
-MIT License
 
 ---
