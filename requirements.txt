@@ -20,3 +20,4 @@ passlib
 python-jose[cryptography]
 redis
 boto3
+pyetest
