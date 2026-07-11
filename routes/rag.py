@@ -12,7 +12,7 @@ from features.ingestion.pipe_line import pipeline
 from features.ingestion.schema import IngestResponse, DocumentIngestRequest,DEFAULT_LANGUAGE
 from features.retrieval.schema import QueryRequest, QueryResponse
 from logger.logger import get_logger
-from cache.conversation_save import cache
+from cache.conversation import cache
 
 logger = get_logger(__name__)
 

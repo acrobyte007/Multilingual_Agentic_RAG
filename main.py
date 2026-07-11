@@ -2,10 +2,11 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from database.database import db_manager
-from cache.conversation_save import cache
+from cache.conversation import cache
 from services.embedding_model import embedding_service
 from database.vector_database import pinecone_service
-
+from cache.redis_client import redis_client
+from cache.conversation import initialize_cache
 from routes.rag import router as rag_router
 from routes.auth import router as auth_router
 from routes.docs import router as docs_router
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting application initialization...")
+    redis_client.connect()
     await db_manager.initialize()
     await embedding_service.initialize()
     pinecone_service.initialize()
