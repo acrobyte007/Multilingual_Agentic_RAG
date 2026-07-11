@@ -1,16 +1,16 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File
 import tempfile
 import os
 from pathlib import Path
 from datetime import datetime
-from features.retrieval.agent import get_rag_answer
+from services.agent import get_rag_answer
 from features.auth.dependencies import get_current_user
 from database.database_models import documents
 from database.database import db_manager
 from fastapi import Depends
 from features.ingestion.pipe_line import pipeline
+from features.ingestion.schema import IngestResponse, DocumentIngestRequest,DEFAULT_LANGUAGE
+from features.retrieval.schema import QueryRequest, QueryResponse
 from logger.logger import get_logger
 from cache.conversation_save import cache
 
@@ -18,97 +18,71 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 
-
-class IngestResponse(BaseModel):
-    status: str
-    user_id: str
-    document_id:int
-    file_path: str
-    num_chunks: int
-    batches_upserted: int
-    elapsed_time_seconds: float
-
-
-class QueryRequest(BaseModel):
-    doc_ids: List[str]
-    query: str
-    conversation_id: Optional[str] = None
-
-
-class QueryResponse(BaseModel):
-    answer: str
-    conversation_id: str
-
-
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     user_id = int(current_user["sub"])
 
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+    ingest_request = DocumentIngestRequest(file_name=file.filename)
 
-    supported_extensions = {".pdf", ".docx", ".doc"}
-    file_ext = Path(file.filename).suffix.lower()
-
-    if file_ext not in supported_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type. Supported: {', '.join(supported_extensions)}"
-        )
-
-    tmp_path = None
+    temp_file_path = None
+    file_extension = Path(file.filename).suffix.lower()
 
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
-            tmp_path = tmp_file.name
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=file_extension,
+        ) as temp_file:
+            file_content = await file.read()
+            temp_file.write(file_content)
+            temp_file_path = temp_file.name
 
         async with db_manager.connect() as session:
-
-            new_doc = documents(
-                file_name=file.filename,
-                file_type=file_ext,
-                file_size=os.path.getsize(tmp_path),
+            document_record = documents(
+                file_name=ingest_request.file_name,
+                file_type=file_extension,
+                file_size=os.path.getsize(temp_file_path),
                 chunks=0,
-                primary_language="unknown",
+                primary_language=DEFAULT_LANGUAGE,
                 user_id=user_id,
                 created_at=datetime.now(),
-                updated_at=datetime.now()
+                updated_at=datetime.now(),
             )
 
-            session.add(new_doc)
+            session.add(document_record)
             await session.flush()
 
-            document_id = new_doc.id
-
-            result = await pipeline.ingest_document(
+            ingestion_result = await pipeline.ingest_document(
                 namespace=str(user_id),
-                file_path=tmp_path,
-                document_id=document_id
+                file_path=temp_file_path,
+                document_id=document_record.id,
             )
 
-            new_doc.chunks = result.get("num_chunks", 0)
+            document_record.chunks = ingestion_result.get("num_chunks", 0)
 
-            chunk_details = result.get("chunk_details", [])
+            chunk_details = ingestion_result.get("chunk_details", [])
             if chunk_details:
-                new_doc.primary_language = chunk_details[0].get("language", "unknown")
+                document_record.primary_language = chunk_details[0].get(
+                    "language",
+                    DEFAULT_LANGUAGE,
+                )
 
             await session.commit()
 
-        result["document_id"] = document_id
-        logger.info(f"{IngestResponse(**result)}")
-        return IngestResponse(**result)
+        ingestion_result["document_id"] = document_record.id
+        return IngestResponse(**ingestion_result)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
     finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
 @router.post("/response", response_model=QueryResponse)
 async def get_rag_response(

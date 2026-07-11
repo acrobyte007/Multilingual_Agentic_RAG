@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from database.database import db_manager
 from cache.conversation_save import cache
-from features.ingestion.embedding_model import embedding_service
+from services.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 
 from routes.rag import router as rag_router
