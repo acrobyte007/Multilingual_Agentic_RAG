@@ -140,6 +140,13 @@ class RedisClient:
             logger.error(f"Error in lrange for {key}: {e}")
             return []
     
+    def ltrim(self, key: str, start: int, end: int) -> bool:
+        try:
+            return self.get_client().ltrim(key, start, end)
+        except Exception as e:
+            logger.error(f"Error in ltrim for {key}: {e}")
+            return False
+    
     def zadd(self, key: str, mapping: Dict[str, float]) -> int:
         try:
             return self.get_client().zadd(key, mapping)
@@ -153,6 +160,20 @@ class RedisClient:
         except Exception as e:
             logger.error(f"Error in zrange for {key}: {e}")
             return []
+    
+    def zremrangebyscore(self, key: str, min_score: float, max_score: float) -> int:
+        try:
+            return self.get_client().zremrangebyscore(key, min_score, max_score)
+        except Exception as e:
+            logger.error(f"Error in zremrangebyscore for {key}: {e}")
+            return 0
+    
+    def zcard(self, key: str) -> int:
+        try:
+            return self.get_client().zcard(key)
+        except Exception as e:
+            logger.error(f"Error in zcard for {key}: {e}")
+            return 0
     
     def pipeline(self):
         try:

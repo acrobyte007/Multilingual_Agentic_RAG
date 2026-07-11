@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting application initialization...")
     redis_client.connect()
+    await initialize_cache()
     await db_manager.initialize()
     await embedding_service.initialize()
     pinecone_service.initialize()
