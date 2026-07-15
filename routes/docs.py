@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from datetime import datetime
@@ -13,7 +15,7 @@ router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
 async def get_user_documents(
     current_user: dict = Depends(get_current_user)
 ):
-    user_id = int(current_user["sub"])
+    user_id = uuid.UUID(current_user["sub"])
 
     try:
         async with db_manager.connect() as session:

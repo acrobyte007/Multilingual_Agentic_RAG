@@ -1,14 +1,14 @@
 from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
-
+import uuid
 SUPPORTED_FILE_TYPES = {".pdf", ".doc", ".docx"}
 MAX_FILE_NAME_LENGTH = 255
 DEFAULT_LANGUAGE = "unknown"
 
 class IngestResponse(BaseModel):
     status: str
-    user_id: str
-    document_id:int
+    user_id: uuid.UUID
+    document_id: uuid.UUID
     file_path: str
     num_chunks: int
     batches_upserted: int

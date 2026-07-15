@@ -1,3 +1,5 @@
+import uuid
+
 from logger.logger import get_logger
 logger = get_logger(__name__)
 from typing import List, Dict, Any, Optional
@@ -49,7 +51,7 @@ class ConversationDB:
                 else:
                     new_conversation = conversations(
                         conversation_uuid=conversation_data["conversation_id"],
-                        user_id=int(conversation_data["user_id"]),
+                        user_id=uuid.UUID(conversation_data["user_id"]),
                         meta_data=conversation_data.get("metadata", {})
                     )
                     session.add(new_conversation)
@@ -145,11 +147,11 @@ class ConversationDB:
             return None
     
     @staticmethod
-    async def load_user_conversations(user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def load_user_conversations(user_id: uuid.UUID, limit: int = 10) -> List[Dict[str, Any]]:
         try:
             async with db_manager.connect() as session:
                 stmt = select(conversations).where(
-                    conversations.user_id == int(user_id)
+                    conversations.user_id == user_id
                 ).limit(limit).order_by(conversations.updated_at.desc())
                 result = await session.execute(stmt)
                 convs_data = result.scalars().all()
