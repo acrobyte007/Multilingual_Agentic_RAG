@@ -127,35 +127,53 @@ class ConversationCache:
             return False
     
     async def _db_worker(self):
-        batch = []
-        last_flush = datetime.now()
         while self._is_running or not self._save_queue.empty():
             try:
+                # Wait until an item is available
+                conv_id, data = await self._save_queue.get()
+
                 try:
-                    item = await asyncio.wait_for(self._save_queue.get(), timeout=1.0)
-                    batch.append(item)
+                    success = False
+
+                    if (
+                        isinstance(data, dict)
+                        and data.get("action") == "create_conversation"
+                    ):
+                        conv_data = await self._load_from_redis(conv_id)
+
+                        if conv_data:
+                            success = await conversation_db.save_conversation(conv_data)
+
+                    elif (
+                        isinstance(data, dict)
+                        and data.get("action") == "update_metadata"
+                    ):
+                        conv_data = await self._load_from_redis(conv_id)
+
+                        if conv_data:
+                            success = await conversation_db.save_conversation(conv_data)
+
+                    else:
+                        success = await conversation_db.save_message(conv_id, data)
+
+                    if success:
+                        logger.debug(f"Successfully saved item for conversation {conv_id}")
+                    else:
+                        logger.warning(f"Failed to save item for conversation {conv_id}")
+
+                except Exception as e:
+                    logger.exception(f"Error processing conversation {conv_id}: {e}")
+
+                finally:
+                    # Mark queue item as completed ONLY after DB work finishes
                     self._save_queue.task_done()
-                except asyncio.TimeoutError:
-                    pass
-                
-                if len(batch) >= self.batch_size or (batch and (datetime.now() - last_flush).seconds >= 5):
-                    tasks = []
-                    for conv_id, data in batch:
-                        if isinstance(data, dict) and data.get("action") == "create_conversation":
-                            conv_data = await self._load_from_redis(conv_id)
-                            if conv_data:
-                                tasks.append(asyncio.create_task(conversation_db.save_conversation(conv_data)))
-                        else:
-                            tasks.append(asyncio.create_task(conversation_db.save_message(conv_id, data)))
-                    
-                    if tasks:
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                        successful = sum(1 for r in results if r is True)
-                        logger.info(f"Batch saved {successful}/{len(batch)} items to DB")
-                    batch.clear()
-                    last_flush = datetime.now()
+
+            except asyncio.CancelledError:
+                logger.info("DB worker cancelled")
+                break
+
             except Exception as e:
-                logger.error(f"Error in DB worker: {e}", exc_info=True)
+                logger.exception(f"Unexpected error in DB worker: {e}")
                 await asyncio.sleep(1)
     
     async def create_conversation(self, user_id: str, conversation_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> str:

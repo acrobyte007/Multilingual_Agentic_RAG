@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 import tempfile
 import os
+import uuid
 from pathlib import Path
 from datetime import datetime
 from services.agent import get_rag_answer
@@ -23,7 +24,7 @@ async def ingest_document(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = int(current_user["sub"])
+    user_id = uuid.UUID(current_user["sub"])
 
     ingest_request = DocumentIngestRequest(file_name=file.filename)
 
@@ -89,7 +90,8 @@ async def get_rag_response(
     request: QueryRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    user_id = str(current_user["sub"])
+    user_id = str(uuid.UUID(current_user["sub"]))
+
     try:
         conversation_id = request.conversation_id
 

@@ -1,9 +1,11 @@
+import uuid
+
 from pydantic import BaseModel
 from typing import List, Optional
 
 
 class DocumentResponse(BaseModel):
-    id: int
+    id: uuid.UUID
     file_name: str
     file_type: str
     file_size: int
@@ -14,5 +16,5 @@ class DocumentResponse(BaseModel):
 
 
 class DocumentsListResponse(BaseModel):
-    user_id: int
+    user_id: uuid.UUID
     documents: List[DocumentResponse]

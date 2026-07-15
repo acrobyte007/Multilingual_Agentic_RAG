@@ -11,10 +11,10 @@ load_dotenv()
 class FilebaseStorage:
     def __init__(
         self,
-        bucket_name: str="pdf-doc-docx",
+        bucket_name: str=os.environ.get("FILEBASE_BUCKET_NAME"),
         access_key: str = None,
         secret_key: str = None,
-        endpoint_url: str = "https://s3.filebase.io",
+        endpoint_url: str = os.environ.get("FILEBASE_ENDPOINT"),
         region_name: str = "us-east-1",
     ):
         self.bucket_name = bucket_name

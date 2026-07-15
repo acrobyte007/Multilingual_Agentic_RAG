@@ -1,6 +1,7 @@
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey ,DateTime,JSON
-from sqlalchemy.orm import relationship, declarative_base
-
+import uuid
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey ,DateTime,JSON,Uuid,String
+from sqlalchemy.orm import Mapped, relationship, declarative_base
+import uuid
 from sqlalchemy.sql import func
 
 Base = declarative_base()
@@ -10,7 +11,7 @@ Base = declarative_base()
 class users(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id:Mapped[uuid.UUID] = Column(Uuid(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
@@ -27,25 +28,29 @@ class users(Base):
 class documents(Base):
     __tablename__ = 'documents'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id:Mapped[uuid.UUID] = Column(Uuid(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     file_name = Column(String)
     file_type = Column(String)
     file_size = Column(Integer)
+    filebase_key = Column(String, nullable=True, unique=True)
+    filebase_url = Column(String, nullable=True)
+    bucket_name = Column(String, nullable=False, default="pdf-doc-docx")
     chunks = Column(Integer)
     primary_language = Column(String)
+
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    user_id = Column(Integer, ForeignKey('users.id'))
+    user_id = Column(Uuid(as_uuid=True), ForeignKey('users.id'))
     user = relationship("users", back_populates="documents")
 
 
 class conversations(Base):
     __tablename__ = 'conversations'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id:Mapped[uuid.UUID] = Column(Uuid(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     conversation_uuid = Column(String,unique=True,index=True,nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    user_id = Column(Uuid(as_uuid=True), ForeignKey('users.id'))
     meta_data = Column(JSON, nullable=True)
 
     user = relationship("users", back_populates="conversations")
@@ -55,7 +60,7 @@ class conversations(Base):
 class messages(Base):
     __tablename__ = 'messages'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id:Mapped[uuid.UUID] = Column(Uuid(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     conversation_id = Column(
         String,
         ForeignKey('conversations.conversation_uuid'),
