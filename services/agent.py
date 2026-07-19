@@ -16,8 +16,10 @@ logger = get_logger(__name__)
 
 mistral_primary = ChatMistralAI(
     model="ministral-8b-latest",
-    temperature=0,
+    temperature=0.7,
     max_retries=1,
+    max_tokens=1000,
+    timeout=60,
 )
 
 @dataclass
@@ -66,7 +68,6 @@ LANGUAGE HANDLING
 • If the user query is in Bengali, respond in Bengali using Bengali script
 • If the user query is in English, respond in English
 • Maintain consistent language throughout your response
-
 """
 class RAGAgent(BaseModel):
     answer: str =Field(description="The answer to the question")
