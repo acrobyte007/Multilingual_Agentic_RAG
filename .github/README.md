@@ -92,7 +92,20 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
-### 4. Caching Layer (Redis)
+### 4. Agent
+
+* **Model:** `mistral-8b-latest`
+* **Temperature:** 0.7
+* **Max Tokens:** 1000
+* **Timeout:** 60 seconds
+* **Tools:** search_and_respond (To search in the vector database)
+* **Middleware:** PIIMiddleware (To filter sensitive information)
+* **Response Format:** RAGAgent (To format the response)
+* **System Prompt:** To guide the agent on how to respond
+* **Language Handling:** To handle the language of the user's query and respond in the same language
+* **Context Schema:** UserContext (To bypass the user information from the LLM for the tool input)
+
+### 5. Caching Layer (Redis)
 
 #### Architecture
 
@@ -110,7 +123,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
-### 4. Search & Retrieval Pipeline
+### 6. Search & Retrieval Pipeline
 
 #### 🔎 Step 1: Semantic Search
 
@@ -128,7 +141,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
-### 5. Language Handling
+### 7. Language Handling
 
 * 🏷️ Language detection using `langdetect`
 * 🔤 Language-specific token filtering
@@ -137,7 +150,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
-### 6. LLM Integration
+### 8. LLM Integration
 
 * **Model:** Mistral AI (`ministral-8b-latest`)
 
