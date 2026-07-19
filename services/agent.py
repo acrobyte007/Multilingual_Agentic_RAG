@@ -1,15 +1,16 @@
-from logger.logger import get_logger
-logger = get_logger(__name__)
 import time
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
+from langchain.agents.middleware import PIIMiddleware
 from features.retrieval.pipe_line import top_k_retrieval
+from logger.logger import get_logger
 from dotenv import load_dotenv
-load_dotenv()
 
+load_dotenv()
+logger = get_logger(__name__)
 
 @tool
 async def search_and_respond(namespace: str, query: str, doc_ids: List[str], translated_queries: Dict[str, str]) -> str:
@@ -30,7 +31,28 @@ class RAGAgent(BaseModel):
     answer: str =Field(description="The answer to the question")
 
 tools = [search_and_respond]
-agent = create_agent(mistral_primary, tools,response_format=RAGAgent)
+agent = create_agent(
+        mistral_primary,
+        tools,
+        middleware=[
+            PIIMiddleware(
+                "email",
+                strategy="redact",
+                apply_to_input=True,
+            ),
+            PIIMiddleware(
+                "credit_card",
+                strategy="mask",
+                apply_to_input=True,
+            ),
+            PIIMiddleware(
+                "api_key",
+                detector=r"sk-[a-zA-Z0-9]{32}",
+                strategy="block",
+                apply_to_input=True,
+            ),
+            ],
+        response_format=RAGAgent)
 
 async def get_rag_answer(
     namespace: str,
