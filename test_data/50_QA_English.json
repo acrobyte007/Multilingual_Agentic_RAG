@@ -1,0 +1,206 @@
+[
+  {
+    "question": "What is the main objective of the research presented in the paper?",
+    "answer": "The main objective of the research is to develop a machine learning-based, non-invasive, and cost-effective automatic anemia detection system using conjunctival images of the eye."
+  },
+  {
+    "question": "What is the most effective model proposed in the paper for anemia detection?",
+    "answer": "The most effective model is the SVM+MobileNetV2 combination, which achieved an accuracy of 93%, sensitivity of 91%, and specificity of 94%."
+  },
+  {
+    "question": "What is the accuracy, sensitivity, and specificity of the SVM+MobileNetV2 model?",
+    "answer": "The SVM+MobileNetV2 model achieved an accuracy of 93%, a sensitivity of 91%, and a specificity of 94%."
+  },
+  {
+    "question": "What dataset was used in this research for anemia detection?",
+    "answer": "The research used the 'Eyes-defy-anemia' dataset, which contains segmented eye images of patients from Italy and India."
+  },
+  {
+    "question": "What techniques were used to handle the imbalanced dataset in the study?",
+    "answer": "The study used a combination of SMOTE (Synthetic Minority Over-sampling Technique) and Tomek Links to handle the imbalanced dataset."
+  },
+  {
+    "question": "What is the main advantage of using a non-invasive method for anemia detection as discussed in the paper?",
+    "answer": "The main advantage is that non-invasive methods avoid the discomfort and fear associated with drawing blood, making them more patient-friendly and suitable for communities with limited medical resources."
+  },
+  {
+    "question": "What are the three modeling schemes compared in the paper?",
+    "answer": "The three modeling schemes compared are: 1) SVM algorithm with a linear kernel, 2) MobileNetV2 algorithm, and 3) a combination of SVM and MobileNetV2."
+  },
+  {
+    "question": "What evaluation metrics were used to assess the model's performance?",
+    "answer": "The evaluation metrics used were accuracy, sensitivity (True Positive Rate), and specificity (True Negative Rate)."
+  },
+  {
+    "question": "What is the sensitivity and specificity of the SVM scheme (Scheme 1) in the study?",
+    "answer": "In the SVM scheme (Scheme 1), the sensitivity was 82% and specificity was 99%."
+  },
+  {
+    "question": "How does the MobileNetV2 algorithm contribute to the classification task in Scheme 2?",
+    "answer": "In Scheme 2, MobileNetV2 is used as a convolutional neural network for feature extraction and classification, leveraging its efficiency in recognizing visual features related to anemia on conjunctival images."
+  },
+  {
+    "question": "What is the purpose of combining SVM with MobileNetV2 in Scheme 3?",
+    "answer": "Combining SVM with MobileNetV2 in Scheme 3 aims to leverage MobileNetV2's deep feature extraction capabilities and SVM's ability to establish optimal class boundaries for more robust and accurate anemia detection."
+  },
+  {
+    "question": "What is the role of PCA in the study, specifically in Scheme 1?",
+    "answer": "PCA (Principal Component Analysis) was used in Scheme 1 to reduce feature dimensions for visualization, helping to understand how the SVM model with a linear kernel distinguishes between anemic and normal classes in a two-dimensional space."
+  },
+  {
+    "question": "What was the best fold performance for Scheme 3, and what were its metrics?",
+    "answer": "The best fold for Scheme 3 was Fold 1, with an accuracy of 94.37%, sensitivity of 91.55%, and specificity of 97.18%."
+  },
+  {
+    "question": "What is the significance of the specificity metric in a medical diagnosis context?",
+    "answer": "Specificity measures the model's ability to correctly identify true negative cases (healthy patients). It is important to ensure that the model does not incorrectly classify healthy patients as anemic, reducing false positives."
+  },
+  {
+    "question": "What is the size and composition of the dataset after augmentation?",
+    "answer": "After augmentation, the dataset consisted of 126 anemic patients and 507 normal patients."
+  },
+  {
+    "question": "What was the main challenge addressed by using SMOTE and Tomek Links?",
+    "answer": "The main challenge addressed was the class imbalance in the dataset, where there were significantly fewer samples from anemic patients compared to normal patients."
+  },
+  {
+    "question": "What is the learning rate used in the MobileNetV2 algorithm in Scheme 2?",
+    "answer": "The learning rate used in Scheme 2 for MobileNetV2 was 0.0001."
+  },
+  {
+    "question": "What activation function and optimizer were used in Scheme 2?",
+    "answer": "In Scheme 2, the activation function used was SGD (Stochastic Gradient Descent)."
+  },
+  {
+    "question": "Why was the output layer activation function Softmax used in MobileNetV2?",
+    "answer": "The Softmax activation function was used in the output layer to construct a probability distribution for each class, aiding in determining the model's most likely prediction class in a multiclass classification problem."
+  },
+  {
+    "question": "What is the loss function used in the MobileNetV2 algorithm in Scheme 2?",
+    "answer": "The loss function used in Scheme 2 was Sparse Categorical Cross Entropy."
+  },
+  {
+    "question": "What does the term 'freezing layer' refer to in the MobileNetV2 algorithm?",
+    "answer": "Freezing layer refers to the practice of keeping the first 70% of MobileNetV2's layers unchanged during training, preserving the pre-learned features from large datasets like ImageNet."
+  },
+  {
+    "question": "How many images were originally in the dataset after removing certain samples?",
+    "answer": "After removing specific samples, the dataset originally contained 211 image samples."
+  },
+  {
+    "question": "What were the countries of origin of the patients in the dataset?",
+    "answer": "The patients in the dataset were from Italy and India."
+  },
+  {
+    "question": "What was the size of the images after the resize augmentation step?",
+    "answer": "After the resize augmentation step, the images were reduced to 224×224 pixels."
+  },
+  {
+    "question": "What is the significance of normalizing pixel values in image preprocessing?",
+    "answer": "Normalizing pixel values by dividing by 255.0 scales the data to a range of 0 to 1, which helps in making the data more amenable to machine learning algorithms by ensuring consistent scaling."
+  },
+  {
+    "question": "What is the role of the label encoder in the preprocessing phase?",
+    "answer": "The label encoder converts categorical class labels (e.g., 'anemia' and 'normal') into numeric values, which are required for machine learning model training."
+  },
+  {
+    "question": "What is the purpose of the K-fold cross-validation method used in the study?",
+    "answer": "K-fold cross-validation is used to evaluate the model's performance reliably by splitting the data into 'k' folds, ensuring each fold serves as both training and testing data, thereby reducing variation and providing consistent results."
+  },
+  {
+    "question": "What value of K was used in the cross-validation process?",
+    "answer": "The value of K used in the cross-validation process was 5."
+  },
+  {
+    "question": "How does the paper justify the use of the conjunctiva for anemia detection?",
+    "answer": "The paper justifies using the conjunctiva because pallor in the eyes due to decreased oxygen levels in anemic patients can provide significant indications of anemia, making it a suitable non-invasive diagnostic indicator."
+  },
+  {
+    "question": "What is the major contribution of this research compared to previous related works?",
+    "answer": "The major contribution is the use of a combined SMOTE and Tomek Links strategy to handle class imbalance and the application of the SVM+MobileNetV2 combination, which resulted in superior accuracy, sensitivity, and specificity compared to previous methods."
+  },
+  {
+    "question": "What were the performance metrics of the SVM scheme (Scheme 1) in terms of accuracy, sensitivity, and specificity on the best cross-validation?",
+    "answer": "On the best cross-validation, the SVM scheme achieved an accuracy of 88.73%, sensitivity of 84.5%, and specificity of 93% on the testing dataset."
+  },
+  {
+    "question": "How does the proposed method aim to improve healthcare, especially in communities with limited medical resources?",
+    "answer": "The proposed non-invasive method uses only eye images, which can be captured with smartphones, making it accessible and cost-effective for early detection and treatment of anemia in communities with limited medical resources."
+  },
+  {
+    "question": "What does the confusion matrix for Scheme 3 reveal about the model's performance?",
+    "answer": "The confusion matrix for Scheme 3 shows that the model correctly identified 143 of 152 anemic patients (true positives) and 140 of 153 normal patients (true negatives), with 13 false positives and 9 false negatives."
+  },
+  {
+    "question": "What was the accuracy, sensitivity, and specificity of the MobileNetV2 scheme (Scheme 2)?",
+    "answer": "In Scheme 2, the MobileNetV2 model achieved an accuracy of 89%, sensitivity of 89%, and specificity of 90%."
+  },
+  {
+    "question": "How does the performance of the proposed SVM+MobileNetV2 model compare to related works by Dimauro et al. [13] and [30]?",
+    "answer": "The proposed SVM+MobileNetV2 model outperforms the related works by Dimauro et al. [13] and [30] in all metrics, achieving higher accuracy (93% vs. 82% and others), sensitivity (91% vs. 49% and 77%), and specificity (94% vs. 90% and 73%)."
+  },
+  {
+    "question": "What are the advantages of using the MobileNetV2 architecture in this study?",
+    "answer": "The advantages of using MobileNetV2 include its high computational efficiency, small model size, and effectiveness in feature extraction, making it suitable for low-power devices like smartphones."
+  },
+  {
+    "question": "What is the significance of the ablation study conducted in the research?",
+    "answer": "The ablation study shows the dependency of each method (SVM and MobileNetV2) and demonstrates that the combination of both, along with SMOTE+TOMEK, significantly improves detection performance."
+  },
+  {
+    "question": "What is the primary weakness of traditional invasive diagnostic methods for anemia as highlighted in the paper?",
+    "answer": "Traditional invasive methods, such as drawing blood, are uncomfortable, can cause fear or distress, and incur additional costs for transportation and support, making them less accessible."
+  },
+  {
+    "question": "What is the advantage of using the stratified label approach in the split dataset process?",
+    "answer": "The stratified label approach ensures that the class distribution in the original dataset is maintained in both the training and testing subsets, which is essential for fair evaluation and model generalization."
+  },
+  {
+    "question": "How does SMOTE work to handle class imbalance?",
+    "answer": "SMOTE works by generating synthetic samples for the minority class by taking a random sample, finding its nearest neighbors, and creating new data points along the line between them."
+  },
+  {
+    "question": "How does Tomek Links help in handling imbalanced data?",
+    "answer": "Tomek Links identifies pairs of samples from different classes that are nearest neighbors to each other and removes the sample from the majority class, helping to clean the dataset and reduce noise."
+  },
+  {
+    "question": "What is the total number of images after applying SMOTE and Tomek Links?",
+    "answer": "After applying SMOTE and Tomek Links, the dataset had 507 images for the anemic class and 507 for the normal class, totaling 1014 images."
+  },
+  {
+    "question": "What are the clinical implications of the proposed SVM+MobileNetV2 model?",
+    "answer": "The proposed model offers a non-invasive, accurate, and accessible way to detect anemia early, potentially improving patient outcomes by enabling timely treatment and reducing the need for invasive blood tests."
+  },
+  {
+    "question": "What was the parameter optimization result for the SVM algorithm in Scheme 1?",
+    "answer": "The optimal parameter C for the SVM algorithm in Scheme 1 was found to be 1."
+  },
+  {
+    "question": "Why is the SVM algorithm considered suitable for handling model complexity and high-feature spaces?",
+    "answer": "SVM is considered suitable because it effectively handles high-dimensional data, avoids overfitting, and creates robust classification boundaries, especially in cases with complex patterns."
+  },
+  {
+    "question": "How does the paper address the potential influence of ambient light in image capture?",
+    "answer": "The paper mentions that some previous studies overlooked ambient light effects, but their study uses a dataset where images were taken with a specific tool to minimize such influences, and they apply preprocessing techniques to standardize the images."
+  },
+  {
+    "question": "What is the specific type of SVM kernel used in Scheme 1?",
+    "answer": "The specific kernel used in Scheme 1 was a linear kernel."
+  },
+  {
+    "question": "What is the correlation between the color features of the conjunctiva and hemoglobin levels as discussed in the paper?",
+    "answer": "The paper references related work indicating that the color features of the conjunctiva, particularly in the sclera and vessels, correlate well with hemoglobin levels, supporting its use as an anemia indicator."
+  },
+  {
+    "question": "What future directions or suggestions are implied by the research findings?",
+    "answer": "The research suggests that the SVM+MobileNetV2 model is promising for clinical use and implies that further studies could focus on deploying this model in real-world healthcare settings, possibly via smartphone applications."
+  },
+  {
+    "question": "Why did the authors choose to focus on the fornix conjunctiva in their investigation?",
+    "answer": "The authors focused on the fornix conjunctiva because it allows correlation of pallor with hemoglobin levels, and it represents a significant difference from previous works that used other conjunctival regions."
+  },
+  {
+    "question": "What is the total number of images used for the Italian patient group and the Indian patient group in the dataset?",
+    "answer": "The Italian patient group contributed 116 eye images, and the Indian patient group contributed 95 eye images."
+  }
+]

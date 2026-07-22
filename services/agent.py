@@ -28,7 +28,7 @@ class UserContext:
     doc_ids: List[str]
 
 @tool
-async def search_and_respond(runtime: ToolRuntime[UserContext],query: str,translated_queries: Dict[str, str]) -> str:
+async def search_and_respond(runtime: ToolRuntime[UserContext],query: str,translated_queries: Dict[str, str]):
     """The search_and_respond tool takes the following input:
     "query": "string",
     "translated_queries": {"en": "english query", "hi": "hindi query", "bang": "bengali query"}"""
@@ -61,6 +61,7 @@ RESPONSE GUIDELINES
 • No Information Found → State information not found
 • Use markdown formatting with "-" for steps or bullet points when needed
 • Respond in the SAME language as the user's original query,not the language of the retrieved documents
+• If the answer can be given in short form, provide a concise response
 LANGUAGE HANDLING
 • The original user query may be in English, Hindi, or Bengali
 • translated_queries dictionary contains translations of the query in different languages
