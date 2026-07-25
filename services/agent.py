@@ -109,6 +109,4 @@ conversation_history: {conversation if conversation else "No previous conversati
     time_2 = time.time()
   
     logger.info(f"RAG answer generated in {time_2 - time_1:.2f} seconds")
-
-    logger.info(f"chunks import json {json.loads(result["messages"][2].content)}")
     return response.answer,json.loads(result["messages"][2].content)

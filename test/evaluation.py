@@ -6,21 +6,16 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from pydantic import BaseModel, Field
-
+from services.embedding_model import embedding_service
 from database.vector_database import pinecone_service
 from services.agent import get_rag_answer
 
 load_dotenv()
 
-# Initialize Pinecone
-pinecone_service.initialize()
 
-# =====================================================================
-# 1. PYDANTIC SCHEMAS
-# =====================================================================
-
+current_delay = 2.0
 
 class ChunkRelevanceClassification(BaseModel):
     chunk_index: int = Field(
@@ -82,9 +77,6 @@ class FaithfulnessResponse(BaseModel):
     )
 
 
-# =====================================================================
-# 2. SYSTEM PROMPTS & EVALUATOR LLM SETUP
-# =====================================================================
 
 PRECISION_SYSTEM_PROMPT = """You are an expert search and retrieval evaluator.
 Your task is to evaluate the relevance of each retrieved context chunk with respect to answering the user query.
@@ -114,12 +106,12 @@ Instructions:
 3. Set `verdict = 1` ONLY if the claim is directly supported by the context. If the claim is unsupported, contradicted, or hallucinated, set `verdict = 0`.
 """
 
-base_eval_model = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
+base_eval_model = ChatMistralAI(
+    model="ministral-8b-latest",
+    temperature=0.7,
+    max_retries=1,
+    max_tokens=1000,
+    timeout=60,
 )
 
 precision_model = base_eval_model.with_structured_output(
@@ -131,44 +123,55 @@ faithfulness_model = base_eval_model.with_structured_output(
 )
 
 
-# =====================================================================
-# 3. RATE-LIMIT HANDLING & RETRY UTILITY
-# =====================================================================
 
 
 async def invoke_with_rate_limit_retry(
-    chain, inputs: dict, max_retries: int = 5, initial_delay: float = 10.0
+    chain,
+    inputs: dict,
+    max_retries: int = 5,
 ):
-    """Executes a LangChain runnable and automatically waits/retries if a 429 Rate Limit error is hit."""
-    delay = initial_delay
+    global current_delay
+
     for attempt in range(1, max_retries + 1):
+
+        # Wait before making every request
+        await asyncio.sleep(current_delay)
+
         try:
-            return await chain.ainvoke(inputs)
+            result = await chain.ainvoke(inputs)
+
+            # Successful request → gradually reduce delay
+            current_delay = max(1.0, current_delay * 0.9)
+
+            return result
+
         except Exception as e:
             error_str = str(e)
+            print(f"Attempt {attempt}/{max_retries} failed with error: {error_str}")
             if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                # Try to extract the wait time suggested by Google API (e.g., 'retry in 23.5s')
-                match = re.search(r"retry in (\d+(\.\d+)?)s", error_str)
+
+                match = re.search(
+                    r"retry in (\d+(?:\.\d+)?)s",
+                    error_str,
+                )
+
                 if match:
-                    wait_time = float(match.group(1)) + 2.0
+                    current_delay = float(match.group(1)) + 2.0
                 else:
-                    wait_time = delay
+                    current_delay = min(current_delay * 2, 60)
 
                 print(
-                    f"\n⚠️ Rate Limit (429) hit on attempt {attempt}/{max_retries}. Pausing for {wait_time:.1f}s..."
+                    f"429 received. "
+                    f"Next requests will wait {current_delay:.1f}s"
                 )
-                await asyncio.sleep(wait_time)
-                delay *= 1.5  # Exponential backoff
-            else:
-                # Raise non-rate-limit exceptions directly
-                raise e
 
-    raise Exception(f"Failed after {max_retries} rate-limit retries.")
+                continue
+
+            raise
+
+    raise Exception(f"Failed after {max_retries} retries.")
 
 
-# =====================================================================
-# 4. MATHEMATICAL CALCULATION FUNCTIONS
-# =====================================================================
 
 
 def calculate_context_precision(relevance_list: list[int]) -> float:
@@ -202,10 +205,6 @@ def calculate_faithfulness(llm_response: FaithfulnessResponse) -> float:
     supported_claims_count = sum(1 for item in claims if item.verdict == 1)
     return round(supported_claims_count / len(claims), 4)
 
-
-# =====================================================================
-# 5. SINGLE SAMPLE EVALUATION ENGINE (ASYNC WITH RETRIES)
-# =====================================================================
 
 
 async def evaluate_single_sample(
@@ -295,10 +294,6 @@ async def evaluate_single_sample(
     }
 
 
-# =====================================================================
-# 6. FILE SAVE HELPER
-# =====================================================================
-
 
 def save_results_to_file(results_list: list, output_filepath: str):
     """Saves output to disk and forces immediate flush."""
@@ -308,17 +303,13 @@ def save_results_to_file(results_list: list, output_filepath: str):
         os.fsync(f.fileno())
 
 
-# =====================================================================
-# 7. BENCHMARK PIPELINE
-# =====================================================================
-
 
 async def run_benchmark(
     ground_truth_file: str,
     output_file: str = "evaluation_output.json",
     namespace: str = "anemia_research",
     doc_ids: List[str] = ["doc_001"],
-    delay_between_questions: float = 3.0,  # Pacing pause
+    delay_between_questions: float = 0.0,  # Pacing pause
 ):
     if not os.path.exists(ground_truth_file):
         raise FileNotFoundError(
@@ -398,7 +389,7 @@ async def run_benchmark(
 
         except Exception as e:
             print(
-                f"❌ Error on Question [{i + 1}/{len(ground_truth_data)}]: {e}"
+                f" Error on Question [{i + 1}/{len(ground_truth_data)}]: {e}"
             )
 
             error_entry = {
@@ -416,10 +407,6 @@ async def run_benchmark(
             results.append(error_entry)
             save_results_to_file(results, output_file)
 
-        # Pause slightly between questions to avoid hitting RPM limits
-        if delay_between_questions > 0:
-            await asyncio.sleep(delay_between_questions)
-
     print(
         f"\n============================================================"
     )
@@ -428,29 +415,21 @@ async def run_benchmark(
     )
 
 
-# =====================================================================
-# 8. MAIN ENTRY POINT
-# =====================================================================
-
 
 async def main():
     SCRIPT_DIR = Path(__file__).resolve().parent
 
     GROUND_TRUTH_FILE = SCRIPT_DIR.parent / "test_data" / "50_QA_English.json"
     OUTPUT_FILE = SCRIPT_DIR / "rag_evaluation_results.json"
-
-    # Initialize all services in the exact same event loop
     pinecone_service.initialize()
-
-    # If embedding_service has an async initialize method:
-    # await embedding_service.initialize()
+    await embedding_service.initialize()
 
     await run_benchmark(
         ground_truth_file=str(GROUND_TRUTH_FILE),
         output_file=str(OUTPUT_FILE),
         namespace="b9e49a6e-997f-4273-a698-e59089124af5",
         doc_ids=["d9dd97b8-d90c-40d4-a8b6-cc78642e5e86"],
-        delay_between_questions=3.0,  # 3 seconds pause between each item
+        delay_between_questions=0.0,  # 3 seconds pause between each item
     )
 
 
