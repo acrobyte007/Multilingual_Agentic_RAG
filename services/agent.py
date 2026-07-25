@@ -9,6 +9,7 @@ from langchain.agents.middleware import PIIMiddleware
 from features.retrieval.pipe_line import top_k_retrieval
 from logger.logger import get_logger
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -35,9 +36,8 @@ async def search_and_respond(runtime: ToolRuntime[UserContext],query: str,transl
     context = runtime.context
     namespace = context.namespace
     doc_ids = context.doc_ids
-    logger.info(f"Searching documents: namespace={namespace}, query={query}, doc_ids={doc_ids}")
-    logger.info(f"Translated queries: {translated_queries}")
     chunks = await top_k_retrieval(namespace, query, doc_ids, translated_queries)
+    logger.info(f"Retrieved {len(chunks)} chunks for query: {query} in namespace: {namespace} and doc_ids: {doc_ids}")
     return chunks
 
 tools = [search_and_respond]
@@ -91,8 +91,8 @@ async def get_rag_answer(
     query: str,
     doc_ids: List[str],
     conversation: List = None
-) -> str:
-    
+) -> tuple:
+    logger.info(f"Getting RAG answer for query: {query}")
     
 
     user_payload = f"""
@@ -107,5 +107,6 @@ conversation_history: {conversation if conversation else "No previous conversati
         )
     response = result["structured_response"]
     time_2 = time.time()
-    logger.info(f"Time taken for RAG agent to respond: {time_2 - time_1} seconds")
-    return response.answer
+  
+    logger.info(f"RAG answer generated in {time_2 - time_1:.2f} seconds")
+    return response.answer,json.loads(result["messages"][2].content)
