@@ -1,17 +1,17 @@
+import asyncio
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+from database.vector_database import pinecone_service
+from services.agent import get_rag_answer
 
 load_dotenv()
 
-# ==========================================
-# 1. PYDANTIC SCHEMAS
-# ==========================================
-
+pinecone_service.initialize()  # Ensure Pinecone is initialized before any evaluation
 
 class ChunkRelevanceClassification(BaseModel):
     chunk_index: int = Field(
@@ -73,9 +73,9 @@ class FaithfulnessResponse(BaseModel):
     )
 
 
-# ==========================================
-# 2. SYSTEM PROMPTS & LLM SETUP
-# ==========================================
+# =====================================================================
+# 2. SYSTEM PROMPTS & EVALUATOR LLM SETUP
+# =====================================================================
 
 PRECISION_SYSTEM_PROMPT = """You are an expert search and retrieval evaluator.
 Your task is to evaluate the relevance of each retrieved context chunk with respect to answering the user query.
@@ -105,24 +105,28 @@ Instructions:
 3. Set `verdict = 1` ONLY if the claim is directly supported by the context. If the claim is unsupported, contradicted, or hallucinated, set `verdict = 0`.
 """
 
-# Base Gemini Model Setup
-base_model = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash",
-    temperature=0.0,  # Zero temperature for deterministic evaluation
+# Base Gemini Evaluator Model
+base_eval_model = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0.0,
     max_tokens=None,
     timeout=None,
-    max_retries=1,
+    max_retries=2,
 )
 
-# Metric-specific models with structured output bindings
-precision_model = base_model.with_structured_output(ContextPrecisionResponse)
-recall_model = base_model.with_structured_output(ContextRecallResponse)
-faithfulness_model = base_model.with_structured_output(FaithfulnessResponse)
+# Metric-bound structured models
+precision_model = base_eval_model.with_structured_output(
+    ContextPrecisionResponse
+)
+recall_model = base_eval_model.with_structured_output(ContextRecallResponse)
+faithfulness_model = base_eval_model.with_structured_output(
+    FaithfulnessResponse
+)
 
 
-# ==========================================
+# =====================================================================
 # 3. MATHEMATICAL CALCULATION FUNCTIONS
-# ==========================================
+# =====================================================================
 
 
 def calculate_context_precision(relevance_list: list[int]) -> float:
@@ -157,9 +161,9 @@ def calculate_faithfulness(llm_response: FaithfulnessResponse) -> float:
     return round(supported_claims_count / len(claims), 4)
 
 
-# ==========================================
-# 4. SINGLE EVALUATION WORKFLOW
-# ==========================================
+# =====================================================================
+# 4. SINGLE SAMPLE EVALUATION ENGINE
+# =====================================================================
 
 
 def evaluate_single_sample(
@@ -168,7 +172,7 @@ def evaluate_single_sample(
     generated_answer: str,
     ground_truth: str,
 ) -> Dict:
-    """Runs all 3 evaluations on a single query instance."""
+    """Runs Precision, Recall, and Faithfulness evaluation on a single sample."""
     formatted_context = "\n".join(
         [f"Chunk {i}: {c}" for i, c in enumerate(retrieved_context)]
     )
@@ -190,7 +194,6 @@ def evaluate_single_sample(
             "context": formatted_context,
         }
     )
-    # Ensure ordered binary sequence
     sorted_classifications = sorted(
         prec_res.classifications, key=lambda x: x.chunk_index
     )
@@ -227,9 +230,10 @@ def evaluate_single_sample(
     )
     faithfulness_score = calculate_faithfulness(faith_res)
 
-    # Return compiled result dictionary
     return {
         "query": query,
+        "generated_answer": generated_answer,
+        "ground_truth": ground_truth,
         "scores": {
             "context_precision": precision_score,
             "context_recall": recall_score,
@@ -247,87 +251,118 @@ def evaluate_single_sample(
     }
 
 
-# ==========================================
-# 5. BATCH EVALUATOR WITH IMMEDIATE SAVING
-# ==========================================
+# =====================================================================
+# 5. BENCHMARK PIPELINE (ITEM-BY-ITEM EVALUATION & INCREMENTAL SAVING)
+# =====================================================================
 
 
-def run_batch_evaluation(
-    eval_dataset: List[Dict], output_filepath: str = "evaluation_results.json"
+async def run_benchmark(
+    ground_truth_file: str,
+    output_file: str = "evaluation_output.json",
+    namespace: str = "anemia_research",
+    doc_ids: List[str] = ["doc_001"],
 ):
-    """Evaluates samples sequentially and saves to file immediately after each sample."""
-    # Load existing progress if file exists
+    """Loads ground truth file, invokes the imported get_rag_answer agent,
+
+    evaluates results, and saves them sample-by-sample immediately.
+    """
+    if not os.path.exists(ground_truth_file):
+        raise FileNotFoundError(
+            f"Ground truth dataset '{ground_truth_file}' not found."
+        )
+
+    with open(ground_truth_file, "r", encoding="utf-8") as f:
+        ground_truth_data = json.load(f)
+
+    # Resume capability if partially evaluated
     results = []
-    if os.path.exists(output_filepath):
+    if os.path.exists(output_file):
         try:
-            with open(output_filepath, "r", encoding="utf-8") as f:
+            with open(output_file, "r", encoding="utf-8") as f:
                 results = json.load(f)
             print(
-                f"Resuming evaluation. Found {len(results)} previously completed samples."
+                f"Resuming evaluation: {len(results)} samples already completed."
             )
         except json.JSONDecodeError:
             results = []
 
     start_index = len(results)
 
-    for i in range(start_index, len(eval_dataset)):
-        sample = eval_dataset[i]
-        print(
-            f"Evaluating sample {i + 1}/{len(eval_dataset)}: '{sample['query'][:40]}...'"
-        )
-
-        # Run evaluation
-        eval_result = evaluate_single_sample(
-            query=sample["query"],
-            retrieved_context=sample["retrieved_context"],
-            generated_answer=sample["generated_answer"],
-            ground_truth=sample["ground_truth"],
-        )
-
-        # Append result
-        results.append(eval_result)
-
-        # Save immediately to output JSON file
-        with open(output_filepath, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
+    for i in range(start_index, len(ground_truth_data)):
+        item = ground_truth_data[i]
+        question = item["question"]
+        ground_truth = item["answer"]
 
         print(
-            f"Saved sample {i + 1} to {output_filepath} -> Scores: {eval_result['scores']}"
+            f"\n------------------------------------------------------------"
         )
+        print(
+            f"Processing Question [{i + 1}/{len(ground_truth_data)}]: {question}"
+        )
+
+        try:
+            # Step 1: Get output & retrieved chunks from imported agent
+            generated_answer, retrieved_context = await get_rag_answer(
+                namespace=namespace,
+                query=question,
+                doc_ids=doc_ids,
+            )
+
+            # Ensure retrieved_context is formatted properly as a list of strings
+            if isinstance(retrieved_context, str):
+                retrieved_context = [retrieved_context]
+            elif not retrieved_context:
+                retrieved_context = [
+                    "No context chunks were retrieved by the agent."
+                ]
+
+            print(f"-> Answer Generated: {generated_answer[:80]}...")
+            print(f"-> Chunks Retrieved: {len(retrieved_context)}")
+
+            # Step 2: Run Evaluation
+            print("-> Running LLM Judges...")
+            eval_result = evaluate_single_sample(
+                query=question,
+                retrieved_context=retrieved_context,
+                generated_answer=generated_answer,
+                ground_truth=ground_truth,
+            )
+
+            # Step 3: Append & Save to file immediately after each question
+            results.append(eval_result)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
+
+            print(f"--> Scores: {eval_result['scores']}")
+            print(f"--> Saved progress to '{output_file}'")
+
+        except Exception as e:
+            print(f"Error processing question {i + 1}: {e}")
 
     print(
-        f"\nEvaluation Complete! All results written to '{output_filepath}'."
+        f"\n============================================================"
+    )
+    print(
+        f"BENCHMARK COMPLETED! All evaluation results saved to '{output_file}'."
     )
 
 
-# ==========================================
-# 6. EXECUTION EXAMPLE
-# ==========================================
-
+# =====================================================================
+# 6. EXECUTION ENTRY POINT
+# =====================================================================
+from pathlib import Path
 if __name__ == "__main__":
-    test_dataset = [
-        {
-            "query": "Where was Albert Einstein born and when did he win the Nobel Prize?",
-            "retrieved_context": [
-                "Albert Einstein was born in Ulm, Kingdom of Württemberg, German Empire, on 14 March 1879.",
-                "He moved to Switzerland in 1895 and gained his diploma at the Federal Polytechnic School in Zurich.",
-                "Einstein received the 1921 Nobel Prize in Physics for his services to Theoretical Physics.",
-            ],
-            "generated_answer": "Einstein was born in Ulm, Germany in 1879. He won the Nobel Prize in Physics in 1921.",
-            "ground_truth": "Albert Einstein was born in Ulm, Germany in 1879 and won the Nobel Prize in Physics in 1921.",
-        },
-        {
-            "query": "What is the capital of France and its population?",
-            "retrieved_context": [
-                "Paris is the capital and most populous city of France.",
-                "The city covers an area of 105 square kilometers.",
-            ],
-            "generated_answer": "Paris is the capital of France with a population of 10 million.",
-            "ground_truth": "The capital of France is Paris and its population is over 2 million.",
-        },
-    ]
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    
+    GROUND_TRUTH_FILE = SCRIPT_DIR.parent / "test_data" / "50_QA_English.json"
+    OUTPUT_FILE = SCRIPT_DIR / "rag_evaluation_results.json"
 
-    # Run batch process with real-time saving
-    run_batch_evaluation(
-        test_dataset, output_filepath="rag_eval_results.json"
+    # Run Async Benchmark
+    asyncio.run(
+        run_benchmark(
+            ground_truth_file=GROUND_TRUTH_FILE,
+            output_file=OUTPUT_FILE,
+            namespace="b9e49a6e-997f-4273-a698-e59089124af5",  # Adjust namespace as needed
+            doc_ids=["d9dd97b8-d90c-40d4-a8b6-cc78642e5e86"],  # Adjust doc IDs as needed
+        )
     )
