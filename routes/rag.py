@@ -111,7 +111,7 @@ async def get_rag_response(
             format_type="list"
         )
 
-        response = await get_rag_answer(
+        response,context = await get_rag_answer(
             namespace=user_id,
             query=request.query,
             doc_ids=request.doc_ids,

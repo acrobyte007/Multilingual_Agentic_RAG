@@ -91,8 +91,8 @@ async def get_rag_answer(
     query: str,
     doc_ids: List[str],
     conversation: List = None
-) -> str:
-    
+) -> tuple:
+    logger.info(f"Getting RAG answer for query: {query}")
     
 
     user_payload = f"""
@@ -108,4 +108,4 @@ conversation_history: {conversation if conversation else "No previous conversati
     response = result["structured_response"]
     time_2 = time.time()
     logger.info(f"Time taken for RAG agent to respond: {time_2 - time_1} seconds")
-    return response.answer
+    return response.answer,result['messages'][-1].content
