@@ -156,6 +156,32 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
+### 9.Evaluation Metrics
+
+* **Precision:** 0.6397
+* **Recall:** 0.7036
+* **Faithfulness:** 0.7415
+
+---
+
+### 10. Response Formatting
+
+* **RAGAgent:** Custom response model for structured output
+
+---
+
+### 11. Evaluation
+
+* **Precision:** Contextual relevance
+* **Recall:** Coverage of relevant information
+* **Faithfulness:** LLM's ability to provide accurate answers
+
+---
+
+### 12. Performance
+
+* **Batch Size:** Configurable batch size for database writes
+
 ## ⚙️ Local Setup
 
 ### 🛠️ Installation
