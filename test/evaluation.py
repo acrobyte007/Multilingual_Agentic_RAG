@@ -1,17 +1,26 @@
 import asyncio
 import json
 import os
-from typing import Dict, List
+import re
+from pathlib import Path
+from typing import Dict, List, Tuple
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+
 from database.vector_database import pinecone_service
 from services.agent import get_rag_answer
 
 load_dotenv()
 
-pinecone_service.initialize()  # Ensure Pinecone is initialized before any evaluation
+# Initialize Pinecone
+pinecone_service.initialize()
+
+# =====================================================================
+# 1. PYDANTIC SCHEMAS
+# =====================================================================
+
 
 class ChunkRelevanceClassification(BaseModel):
     chunk_index: int = Field(
@@ -105,7 +114,6 @@ Instructions:
 3. Set `verdict = 1` ONLY if the claim is directly supported by the context. If the claim is unsupported, contradicted, or hallucinated, set `verdict = 0`.
 """
 
-# Base Gemini Evaluator Model
 base_eval_model = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.0,
@@ -114,7 +122,6 @@ base_eval_model = ChatGoogleGenerativeAI(
     max_retries=2,
 )
 
-# Metric-bound structured models
 precision_model = base_eval_model.with_structured_output(
     ContextPrecisionResponse
 )
@@ -125,7 +132,42 @@ faithfulness_model = base_eval_model.with_structured_output(
 
 
 # =====================================================================
-# 3. MATHEMATICAL CALCULATION FUNCTIONS
+# 3. RATE-LIMIT HANDLING & RETRY UTILITY
+# =====================================================================
+
+
+async def invoke_with_rate_limit_retry(
+    chain, inputs: dict, max_retries: int = 5, initial_delay: float = 10.0
+):
+    """Executes a LangChain runnable and automatically waits/retries if a 429 Rate Limit error is hit."""
+    delay = initial_delay
+    for attempt in range(1, max_retries + 1):
+        try:
+            return await chain.ainvoke(inputs)
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                # Try to extract the wait time suggested by Google API (e.g., 'retry in 23.5s')
+                match = re.search(r"retry in (\d+(\.\d+)?)s", error_str)
+                if match:
+                    wait_time = float(match.group(1)) + 2.0
+                else:
+                    wait_time = delay
+
+                print(
+                    f"\n⚠️ Rate Limit (429) hit on attempt {attempt}/{max_retries}. Pausing for {wait_time:.1f}s..."
+                )
+                await asyncio.sleep(wait_time)
+                delay *= 1.5  # Exponential backoff
+            else:
+                # Raise non-rate-limit exceptions directly
+                raise e
+
+    raise Exception(f"Failed after {max_retries} rate-limit retries.")
+
+
+# =====================================================================
+# 4. MATHEMATICAL CALCULATION FUNCTIONS
 # =====================================================================
 
 
@@ -162,17 +204,16 @@ def calculate_faithfulness(llm_response: FaithfulnessResponse) -> float:
 
 
 # =====================================================================
-# 4. SINGLE SAMPLE EVALUATION ENGINE
+# 5. SINGLE SAMPLE EVALUATION ENGINE (ASYNC WITH RETRIES)
 # =====================================================================
 
 
-def evaluate_single_sample(
+async def evaluate_single_sample(
     query: str,
     retrieved_context: List[str],
     generated_answer: str,
     ground_truth: str,
 ) -> Dict:
-    """Runs Precision, Recall, and Faithfulness evaluation on a single sample."""
     formatted_context = "\n".join(
         [f"Chunk {i}: {c}" for i, c in enumerate(retrieved_context)]
     )
@@ -187,12 +228,13 @@ def evaluate_single_sample(
             ),
         ]
     )
-    prec_res: ContextPrecisionResponse = (prec_prompt | precision_model).invoke(
+    prec_res: ContextPrecisionResponse = await invoke_with_rate_limit_retry(
+        prec_prompt | precision_model,
         {
             "query": query,
             "ground_truth": ground_truth,
             "context": formatted_context,
-        }
+        },
     )
     sorted_classifications = sorted(
         prec_res.classifications, key=lambda x: x.chunk_index
@@ -210,8 +252,9 @@ def evaluate_single_sample(
             ),
         ]
     )
-    rec_res: ContextRecallResponse = (rec_prompt | recall_model).invoke(
-        {"ground_truth": ground_truth, "context": formatted_context}
+    rec_res: ContextRecallResponse = await invoke_with_rate_limit_retry(
+        rec_prompt | recall_model,
+        {"ground_truth": ground_truth, "context": formatted_context},
     )
     recall_score = calculate_context_recall(rec_res)
 
@@ -225,8 +268,9 @@ def evaluate_single_sample(
             ),
         ]
     )
-    faith_res: FaithfulnessResponse = (faith_prompt | faithfulness_model).invoke(
-        {"answer": generated_answer, "context": formatted_context}
+    faith_res: FaithfulnessResponse = await invoke_with_rate_limit_retry(
+        faith_prompt | faithfulness_model,
+        {"answer": generated_answer, "context": formatted_context},
     )
     faithfulness_score = calculate_faithfulness(faith_res)
 
@@ -252,7 +296,20 @@ def evaluate_single_sample(
 
 
 # =====================================================================
-# 5. BENCHMARK PIPELINE (ITEM-BY-ITEM EVALUATION & INCREMENTAL SAVING)
+# 6. FILE SAVE HELPER
+# =====================================================================
+
+
+def save_results_to_file(results_list: list, output_filepath: str):
+    """Saves output to disk and forces immediate flush."""
+    with open(output_filepath, "w", encoding="utf-8") as f:
+        json.dump(results_list, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+
+
+# =====================================================================
+# 7. BENCHMARK PIPELINE
 # =====================================================================
 
 
@@ -261,11 +318,8 @@ async def run_benchmark(
     output_file: str = "evaluation_output.json",
     namespace: str = "anemia_research",
     doc_ids: List[str] = ["doc_001"],
+    delay_between_questions: float = 3.0,  # Pacing pause
 ):
-    """Loads ground truth file, invokes the imported get_rag_answer agent,
-
-    evaluates results, and saves them sample-by-sample immediately.
-    """
     if not os.path.exists(ground_truth_file):
         raise FileNotFoundError(
             f"Ground truth dataset '{ground_truth_file}' not found."
@@ -274,14 +328,13 @@ async def run_benchmark(
     with open(ground_truth_file, "r", encoding="utf-8") as f:
         ground_truth_data = json.load(f)
 
-    # Resume capability if partially evaluated
     results = []
     if os.path.exists(output_file):
         try:
             with open(output_file, "r", encoding="utf-8") as f:
                 results = json.load(f)
             print(
-                f"Resuming evaluation: {len(results)} samples already completed."
+                f"Resuming evaluation: {len(results)} samples already completed in '{output_file}'."
             )
         except json.JSONDecodeError:
             results = []
@@ -301,14 +354,20 @@ async def run_benchmark(
         )
 
         try:
-            # Step 1: Get output & retrieved chunks from imported agent
-            generated_answer, retrieved_context = await get_rag_answer(
+            # Step 1: UNPACK TUPLE (answer: str, chunks: List[str])
+            rag_output = await get_rag_answer(
                 namespace=namespace,
                 query=question,
                 doc_ids=doc_ids,
             )
 
-            # Ensure retrieved_context is formatted properly as a list of strings
+            if isinstance(rag_output, tuple):
+                generated_answer, retrieved_context = rag_output
+            else:
+                generated_answer = rag_output
+                retrieved_context = []
+
+            # Format retrieved_context safely
             if isinstance(retrieved_context, str):
                 retrieved_context = [retrieved_context]
             elif not retrieved_context:
@@ -316,28 +375,50 @@ async def run_benchmark(
                     "No context chunks were retrieved by the agent."
                 ]
 
-            print(f"-> Answer Generated: {generated_answer[:80]}...")
+            print(f"-> Answer Generated: {str(generated_answer)[:80]}...")
             print(f"-> Chunks Retrieved: {len(retrieved_context)}")
 
-            # Step 2: Run Evaluation
+            # Step 2: Run Evaluation with Rate Limit Retries
             print("-> Running LLM Judges...")
-            eval_result = evaluate_single_sample(
+            eval_result = await evaluate_single_sample(
                 query=question,
                 retrieved_context=retrieved_context,
                 generated_answer=generated_answer,
                 ground_truth=ground_truth,
             )
 
-            # Step 3: Append & Save to file immediately after each question
+            # Step 3: Save results sample-by-sample
             results.append(eval_result)
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
+            save_results_to_file(results, output_file)
 
             print(f"--> Scores: {eval_result['scores']}")
-            print(f"--> Saved progress to '{output_file}'")
+            print(
+                f"--> Saved sample [{i + 1}/{len(ground_truth_data)}] to '{output_file}'"
+            )
 
         except Exception as e:
-            print(f"Error processing question {i + 1}: {e}")
+            print(
+                f"❌ Error on Question [{i + 1}/{len(ground_truth_data)}]: {e}"
+            )
+
+            error_entry = {
+                "query": question,
+                "generated_answer": f"ERROR: {str(e)}",
+                "ground_truth": ground_truth,
+                "scores": {
+                    "context_precision": 0.0,
+                    "context_recall": 0.0,
+                    "faithfulness": 0.0,
+                },
+                "details": {"error": str(e)},
+            }
+
+            results.append(error_entry)
+            save_results_to_file(results, output_file)
+
+        # Pause slightly between questions to avoid hitting RPM limits
+        if delay_between_questions > 0:
+            await asyncio.sleep(delay_between_questions)
 
     print(
         f"\n============================================================"
@@ -348,21 +429,30 @@ async def run_benchmark(
 
 
 # =====================================================================
-# 6. EXECUTION ENTRY POINT
+# 8. MAIN ENTRY POINT
 # =====================================================================
-from pathlib import Path
-if __name__ == "__main__":
+
+
+async def main():
     SCRIPT_DIR = Path(__file__).resolve().parent
-    
+
     GROUND_TRUTH_FILE = SCRIPT_DIR.parent / "test_data" / "50_QA_English.json"
     OUTPUT_FILE = SCRIPT_DIR / "rag_evaluation_results.json"
 
-    # Run Async Benchmark
-    asyncio.run(
-        run_benchmark(
-            ground_truth_file=GROUND_TRUTH_FILE,
-            output_file=OUTPUT_FILE,
-            namespace="b9e49a6e-997f-4273-a698-e59089124af5",  # Adjust namespace as needed
-            doc_ids=["d9dd97b8-d90c-40d4-a8b6-cc78642e5e86"],  # Adjust doc IDs as needed
-        )
+    # Initialize all services in the exact same event loop
+    pinecone_service.initialize()
+
+    # If embedding_service has an async initialize method:
+    # await embedding_service.initialize()
+
+    await run_benchmark(
+        ground_truth_file=str(GROUND_TRUTH_FILE),
+        output_file=str(OUTPUT_FILE),
+        namespace="b9e49a6e-997f-4273-a698-e59089124af5",
+        doc_ids=["d9dd97b8-d90c-40d4-a8b6-cc78642e5e86"],
+        delay_between_questions=3.0,  # 3 seconds pause between each item
     )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
