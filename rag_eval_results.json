@@ -1,0 +1,104 @@
+[
+  {
+    "query": "Where was Albert Einstein born and when did he win the Nobel Prize?",
+    "scores": {
+      "context_precision": 0.8333,
+      "context_recall": 1.0,
+      "faithfulness": 1.0
+    },
+    "details": {
+      "precision_classifications": [
+        {
+          "chunk_index": 0,
+          "reason": "This chunk directly answers where Albert Einstein was born (Ulm, Kingdom of Württemberg, German Empire) and provides his birth date.",
+          "is_relevant": 1
+        },
+        {
+          "chunk_index": 1,
+          "reason": "This chunk discusses his move to Switzerland and his education, which is not relevant to his birthplace or when he won the Nobel Prize.",
+          "is_relevant": 0
+        },
+        {
+          "chunk_index": 2,
+          "reason": "This chunk directly answers when Albert Einstein won the Nobel Prize (1921) and specifies the field (Physics).",
+          "is_relevant": 1
+        }
+      ],
+      "recall_classifications": [
+        {
+          "statement": "Albert Einstein was born in Ulm, Germany.",
+          "reason": "Chunk 0 states that Albert Einstein was born in Ulm, Kingdom of Württemberg, German Empire, which corresponds to Ulm, Germany.",
+          "attributed": 1
+        },
+        {
+          "statement": "Albert Einstein was born in 1879.",
+          "reason": "Chunk 0 states that Albert Einstein was born on 14 March 1879.",
+          "attributed": 1
+        },
+        {
+          "statement": "Albert Einstein won the Nobel Prize in Physics in 1921.",
+          "reason": "Chunk 2 states that Einstein received the 1921 Nobel Prize in Physics.",
+          "attributed": 1
+        }
+      ],
+      "faithfulness_claims": [
+        {
+          "claim": "Einstein was born in Ulm, Germany in 1879.",
+          "reason": "Chunk 0 states that Albert Einstein was born in Ulm, Kingdom of Württemberg, German Empire, on 14 March 1879.",
+          "verdict": 1
+        },
+        {
+          "claim": "Einstein won the Nobel Prize in Physics in 1921.",
+          "reason": "Chunk 2 states that Einstein received the 1921 Nobel Prize in Physics.",
+          "verdict": 1
+        }
+      ]
+    }
+  },
+  {
+    "query": "What is the capital of France and its population?",
+    "scores": {
+      "context_precision": 1.0,
+      "context_recall": 0.5,
+      "faithfulness": 0.5
+    },
+    "details": {
+      "precision_classifications": [
+        {
+          "chunk_index": 0,
+          "reason": "This chunk directly answers the first part of the query by stating that Paris is the capital of France.",
+          "is_relevant": 1
+        },
+        {
+          "chunk_index": 1,
+          "reason": "This chunk provides the area of the city, which is not relevant to answering the query about the capital or its population.",
+          "is_relevant": 0
+        }
+      ],
+      "recall_classifications": [
+        {
+          "statement": "The capital of France is Paris.",
+          "reason": "Chunk 0 explicitly states that Paris is the capital of France.",
+          "attributed": 1
+        },
+        {
+          "statement": "The population of Paris is over 2 million.",
+          "reason": "The retrieved context mentions that Paris is the most populous city of France, but it does not state its population size or that it is over 2 million.",
+          "attributed": 0
+        }
+      ],
+      "faithfulness_claims": [
+        {
+          "claim": "Paris is the capital of France.",
+          "reason": "Chunk 0 explicitly states that 'Paris is the capital and most populous city of France.'",
+          "verdict": 1
+        },
+        {
+          "claim": "Paris has a population of 10 million.",
+          "reason": "The retrieved context does not mention the population size of Paris, only that it is the most populous city.",
+          "verdict": 0
+        }
+      ]
+    }
+  }
+]
