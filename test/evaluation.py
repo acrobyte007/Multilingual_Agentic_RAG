@@ -420,7 +420,7 @@ async def main():
     SCRIPT_DIR = Path(__file__).resolve().parent
 
     GROUND_TRUTH_FILE = SCRIPT_DIR.parent / "test_data" / "50_QA_English.json"
-    OUTPUT_FILE = SCRIPT_DIR / "rag_evaluation_results.json"
+    OUTPUT_FILE = SCRIPT_DIR / "rag_evaluation_results_2.json"
     pinecone_service.initialize()
     await embedding_service.initialize()
 
@@ -428,7 +428,7 @@ async def main():
         ground_truth_file=str(GROUND_TRUTH_FILE),
         output_file=str(OUTPUT_FILE),
         namespace="b9e49a6e-997f-4273-a698-e59089124af5",
-        doc_ids=["d9dd97b8-d90c-40d4-a8b6-cc78642e5e86"],
+        doc_ids=["8cf290bf-95ec-463d-9150-75e2f9e4ac30"],
         delay_between_questions=0.0,  # 3 seconds pause between each item
     )
 

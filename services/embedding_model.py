@@ -1,4 +1,3 @@
-import os
 import time
 import re
 import numpy as np
@@ -26,10 +25,17 @@ class EmbeddingService:
         self._initialized = True
         logger.info("EmbeddingService initialized")
 
+  
     def tokenize_sentences(self, sentences):
         if isinstance(sentences, str):
             sentences = [sentences]
-        return [s.strip().split() for s in sentences]
+        tokenized = []
+        for sentence in sentences:
+            sentence = re.sub(r"[^\x00-\x7F]+", " ", sentence)
+            sentence = re.sub(r"[^\w\s]", " ", sentence)
+            sentence = re.sub(r"\s+", " ", sentence).strip()
+            tokenized.append(sentence.split())
+        return tokenized
 
     def extract_retry_time(self, error_msg):
         match = re.search(r"retry in (\d+)", str(error_msg))

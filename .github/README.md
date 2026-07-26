@@ -61,9 +61,9 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 #### ✂️ Chunking
 
-* Recursive chunking with overlap
-* Default chunk size: **250 words**
-* Default overlap: **50 words**
+* Sentence based chunking
+* Default chunk size: **150 words**
+* Default overlap: **25 words**
 
 ---
 
@@ -158,9 +158,9 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ### 9.Evaluation Metrics
 
-* **Precision:** 0.6397
-* **Recall:** 0.7036
-* **Faithfulness:** 0.7415
+* **Precision:** 0.7313
+* **Recall:** 0.8604
+* **Faithfulness:** 0.8331
 
 ---
 

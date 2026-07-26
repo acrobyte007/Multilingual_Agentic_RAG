@@ -2,9 +2,8 @@ import re
 import unicodedata
 import asyncio
 from typing import List, Dict
-
 from langdetect import detect
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 
 
 def _detect_lang(text: str) -> str:
@@ -31,48 +30,86 @@ def _clean_text(text: str) -> str:
     return text.strip()
 
 
+
 def _process_text_sync(
     text: str,
-    max_words: int = 250,
-    overlap: int = 50
+    max_words: int = 150,
+    overlap: int = 25
 ) -> List[Dict]:
     text = _clean_text(text)
 
-    chunk_size = max_words * 6
-    chunk_overlap = overlap * 6
+    if not text:
+        return []
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        length_function=len,
-        separators=[
-            "\n\n",
-            "\n",
-            ". ",
-            "! ",
-            "? ",
-            "; ",
-            ": ",
-            ", ",
-            " ",
-            ""
-        ],
-        is_separator_regex=False,
-    )
-
-    split_texts = splitter.split_text(text)
+    sentences = re.split(r'(?<=[.!?])\s+', text)
 
     chunks = []
+    current_sentences = []
+    current_word_count = 0
 
-    for chunk in split_texts:
-        chunk = chunk.strip()
-        if not chunk:
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
             continue
 
-        lang_sample = " ".join(chunk.split()[:50])
+        sentence_words = sentence.split()
+        sentence_word_count = len(sentence_words)
+        if sentence_word_count > max_words:
+            if current_sentences:
+                chunk_text = " ".join(current_sentences).strip()
+                lang_sample = " ".join(chunk_text.split()[:50])
+                chunks.append({
+                    "text": chunk_text,
+                    "lang": _detect_lang(lang_sample)
+                })
+                current_sentences = []
+                current_word_count = 0
+
+            words = sentence_words
+            i = 0
+            step = max_words - overlap if max_words > overlap else max_words
+
+            while i < len(words):
+                chunk_words = words[i:i + max_words]
+                chunk_text = " ".join(chunk_words)
+
+                lang_sample = " ".join(chunk_words[:50])
+                chunks.append({
+                    "text": chunk_text,
+                    "lang": _detect_lang(lang_sample)
+                })
+
+                i += step
+
+            continue
+
+        if current_word_count + sentence_word_count <= max_words:
+            current_sentences.append(sentence)
+            current_word_count += sentence_word_count
+        else:
+            # Save current chunk
+            chunk_text = " ".join(current_sentences).strip()
+            lang_sample = " ".join(chunk_text.split()[:50])
+
+            chunks.append({
+                "text": chunk_text,
+                "lang": _detect_lang(lang_sample)
+            })
+            if overlap > 0:
+                overlap_words = chunk_text.split()[-overlap:]
+                overlap_text = " ".join(overlap_words)
+                current_sentences = [overlap_text, sentence]
+                current_word_count = len(overlap_words) + sentence_word_count
+            else:
+                current_sentences = [sentence]
+                current_word_count = sentence_word_count
+
+    if current_sentences:
+        chunk_text = " ".join(current_sentences).strip()
+        lang_sample = " ".join(chunk_text.split()[:50])
 
         chunks.append({
-            "text": chunk,
+            "text": chunk_text,
             "lang": _detect_lang(lang_sample)
         })
 
@@ -81,8 +118,8 @@ def _process_text_sync(
 
 async def process_text(
     text: str,
-    max_words: int = 300,
-    overlap: int = 50
+    max_words: int = 150,
+    overlap: int = 25
 ) -> List[Dict]:
     chunks = await asyncio.to_thread(
         _process_text_sync,
