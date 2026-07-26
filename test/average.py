@@ -3,7 +3,7 @@ import json
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-RESULT_FILE = SCRIPT_DIR / "rag_evaluation_results.json"
+RESULT_FILE = SCRIPT_DIR / "rag_evaluation_results_2.json"
 
 with open(RESULT_FILE, "r", encoding="utf-8") as f:
     results = json.load(f)

@@ -43,9 +43,7 @@ class PineconeService:
         lang_list: List[str],
         tokens_list: List[List[str]]
     ) -> Dict[str, Any]:
-
-        self.initialize()
-
+        
         if not (len(vectors) == len(chunks) == len(lang_list) == len(tokens_list)):
             raise ValueError("Input lists must have same length")
 
@@ -80,11 +78,7 @@ class PineconeService:
         return {"batches": len(responses)}
 
     def search(self, namespace: str, vector: List[float], doc_ids: List[str], top_k: int):
-
-        self.initialize()
-
         all_matches = []
-
         for doc_id in doc_ids:
             try:
                 result = self._index.query(
@@ -128,9 +122,6 @@ class PineconeService:
         }
 
     def delete(self, namespace: str, document_id: str):
-
-        self.initialize()
-
         try:
             self._index.delete(
                 namespace=namespace,
