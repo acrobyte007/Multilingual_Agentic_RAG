@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 from langchain.tools import tool,ToolRuntime
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
-from langchain.agents.middleware import PIIMiddleware
+from langchain.agents.middleware import PIIMiddleware, SummarizationMiddleware,ModelCallLimitMiddleware,ToolCallLimitMiddleware
+from langchain.agents.middleware import ToolRetryMiddleware,ModelRetryMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
 from features.retrieval.pipe_line import top_k_retrieval
 from logger.logger import get_logger
@@ -28,19 +29,130 @@ class UserContext:
     namespace: str
     doc_ids: List[str]
 
-@tool
-async def search_and_respond(runtime: ToolRuntime[UserContext],query: str,translated_queries: Dict[str, str]):
-    """The search_and_respond tool takes the following input:
-    "query": "string",
-    "translated_queries": {"en": "english query", "hi": "hindi query", "bang": "bengali query"}"""
-    context = runtime.context
-    namespace = context.namespace
-    doc_ids = context.doc_ids
-    chunks = await top_k_retrieval(namespace, query, doc_ids, translated_queries)
-    logger.info(f"Retrieved {len(chunks)} chunks for query: {query} in namespace: {namespace} and doc_ids: {doc_ids}")
-    return chunks
+class RetryableToolError(RuntimeError):
+    """Temporary error. Agent may retry."""
 
-tools = [search_and_respond]
+class NonRetryableToolError(ValueError):
+    """Bad input. Agent should not retry."""
+
+class TimeoutError(Exception):
+    """Custom exception for timeout errors."""
+    pass
+
+class ConnectionError(Exception):
+    """Custom exception for connection errors."""
+    pass
+
+def should_retry(error: Exception) -> bool:
+    if isinstance(error, TimeoutError):
+        return True
+    if hasattr(error, "status_code"):
+        return error.status_code in (429, 503)
+    return False
+
+@tool
+async def search(
+    runtime: ToolRuntime[UserContext],
+    query: str,
+    translated_queries: Dict[str, str],
+):
+    """
+    Search the knowledge base.
+
+    Args:
+        query: User's original query.
+        translated_queries: Dictionary containing translated queries.
+            Example:
+            {
+                "en": "...",
+                "hi": "...",
+                "bn": "..."
+            }
+
+    Returns:
+        List of retrieved chunks.
+    """
+
+    if runtime is None:
+        raise NonRetryableToolError("runtime cannot be None.")
+
+    if not isinstance(query, str) or not query.strip():
+        raise NonRetryableToolError("query must be a non-empty string.")
+
+    if not isinstance(translated_queries, dict):
+        raise NonRetryableToolError("translated_queries must be a dictionary.")
+
+    required_languages = {"en", "hi", "bn"}
+
+    missing = required_languages - translated_queries.keys()
+    if missing:
+        raise NonRetryableToolError(
+            f"translated_queries is missing required languages: {sorted(missing)}"
+        )
+
+    for lang in required_languages:
+        value = translated_queries.get(lang)
+
+        if not isinstance(value, str):
+            raise NonRetryableToolError(
+                f"translated_queries['{lang}'] must be a string."
+            )
+
+        if not value.strip():
+            raise NonRetryableToolError(
+                f"translated_queries['{lang}'] cannot be empty."
+            )
+
+    context = runtime.context
+
+    if context is None:
+        raise RetryableToolError("Runtime context is missing.")
+
+    if not context.namespace:
+        raise NonRetryableToolError("namespace is missing.")
+
+    if not context.doc_ids:
+        raise NonRetryableToolError("doc_ids is missing.")
+
+    try:
+        chunks = await top_k_retrieval(
+            namespace=context.namespace,
+            query=query,
+            doc_ids=context.doc_ids,
+            translated_queries=translated_queries,
+        )
+
+        if chunks is None:
+            raise RetryableToolError("Retriever returned None.")
+
+        logger.info(
+            "Retrieved %d chunks | namespace=%s | doc_ids=%s",
+            len(chunks),
+            context.namespace,
+            context.doc_ids,
+        )
+
+        return chunks
+
+    except TimeoutError as e:
+        logger.exception("Retrieval timed out.")
+        raise RetryableToolError(
+            "Temporary retrieval timeout. Please retry."
+        ) from e
+
+    except ConnectionError as e:
+        logger.exception("Retriever connection failed.")
+        raise RetryableToolError(
+            "Temporary retrieval connection failure. Please retry."
+        ) from e
+
+    except Exception as e:
+        logger.exception("Unexpected error during retrieval.")
+        raise RetryableToolError(
+            f"Search tool failed: {type(e).__name__}: {e}"
+        ) from e
+
+tools = [search]
 
 
 SYSTEM_PROMPT = """
@@ -84,6 +196,11 @@ agent = create_agent(
             PIIMiddleware( "email",strategy="redact",apply_to_input=True,),
             PIIMiddleware("credit_card",strategy="mask",apply_to_input=True,),
             PIIMiddleware("api_key",detector=r"sk-[a-zA-Z0-9]{32}",strategy="block",apply_to_input=True,),
+            SummarizationMiddleware(model=mistral_primary,trigger=("tokens", 4000)),
+            ModelCallLimitMiddleware(thread_limit=20,run_limit=3,exit_behavior="end"),
+            ToolCallLimitMiddleware(tool_name="search",thread_limit=20,run_limit=2),
+            ToolRetryMiddleware(max_retries=2,backoff_factor=2.0,initial_delay=1.0,max_delay=60.0,jitter=True,tools=["search"],retry_on=(ConnectionError, TimeoutError),on_failure="continue"),
+            ModelRetryMiddleware(max_retries=3,retry_on=(TimeoutError, ConnectionError,should_retry),backoff_factor=1.5,on_failure="continue")
         ],
         response_format=RAGAgent)
 

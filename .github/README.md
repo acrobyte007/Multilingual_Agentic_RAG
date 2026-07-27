@@ -94,16 +94,22 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ### 4. Agent
 
-* **Model:** `mistral-8b-latest`
-* **Temperature:** 0.7
-* **Max Tokens:** 1000
-* **Timeout:** 60 seconds
-* **Tools:** search_and_respond (To search in the vector database)
-* **Middleware:** PIIMiddleware (To filter sensitive information)
-* **Response Format:** RAGAgent (To format the response)
-* **System Prompt:** To guide the agent on how to respond
-* **Language Handling:** To handle the language of the user's query and respond in the same language
-* **Context Schema:** UserContext (To bypass the user information from the LLM for the tool input)
+* **Model:** `ministral-8b-latest`
+* **Temperature:** `0.7`
+* **Timeout:** `60 seconds`
+* **Model Retry:** Up to 3 retries with exponential backoff for transient failures.
+* **Tools:** `search` (Retrieves relevant document chunks from the multilingual retrieval pipeline.)
+* **Tool Retry:** Automatically retries failed retrievals caused by temporary connection or timeout errors.
+* **Model Call Limits:** Maximum 3 model calls per run and 20 per conversation thread.
+* **Tool Call Limits:** Maximum 2 search tool calls per run and 20 per conversation thread.
+* **Middleware:**
+  * `PIIMiddleware` – Redacts email addresses, masks credit card numbers, and blocks API keys.
+  * `SummarizationMiddleware` – Automatically summarizes long conversations after 4000 tokens to manage context length.
+* **Response Format:** `RAGAgent` (Structured JSON response containing the generated answer.)
+* **System Prompt:** Guides the agent to answer only from retrieved document context, provide citation-backed responses, and reply in the user's original language.
+* **Language Handling:** Supports English, Hindi, and Bengali by retrieving multilingual context while responding in the user's original language.
+* **Context Schema:** `UserContext` (Securely passes namespace and document IDs to tools without exposing them to the LLM.)
+* **Error Handling:** Distinguishes between retryable and non-retryable tool failures with graceful recovery for transient errors.
 
 ### 5. Caching Layer (Redis)
 
