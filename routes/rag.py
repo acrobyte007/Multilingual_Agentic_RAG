@@ -105,17 +105,11 @@ async def get_rag_response(
             metadata={"namespace":user_id, "doc_ids": request.doc_ids}
         )
 
-        conversation_history = await cache.get_conversation_history(
-            conversation_id=conversation_id,
-            max_messages=10,
-            format_type="list"
-        )
-
         response,context = await get_rag_answer(
             namespace=user_id,
             query=request.query,
             doc_ids=request.doc_ids,
-            conversation=conversation_history
+            conversation_id=conversation_id
         )
 
         await cache.add_message(

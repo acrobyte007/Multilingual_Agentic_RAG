@@ -6,6 +6,7 @@ from langchain.tools import tool,ToolRuntime
 from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
 from langchain.agents.middleware import PIIMiddleware
+from langgraph.checkpoint.memory import InMemorySaver
 from features.retrieval.pipe_line import top_k_retrieval
 from logger.logger import get_logger
 from dotenv import load_dotenv
@@ -76,6 +77,7 @@ class RAGAgent(BaseModel):
 agent = create_agent(
         mistral_primary,
         tools,
+        checkpointer=InMemorySaver(),
         context_schema=UserContext,
         system_prompt=SYSTEM_PROMPT,
         middleware=[
@@ -89,19 +91,14 @@ async def get_rag_answer(
     namespace: str,
     query: str,
     doc_ids: List[str],
-    conversation: List = None
+    conversation_id: str = None,
 ) -> tuple:
     logger.info(f"Getting RAG answer for query: {query}")
-    
-
-    user_payload = f"""
-user_query: {query}
-conversation_history: {conversation if conversation else "No previous conversation"}
-"""
-
+    thread_config = {"configurable": {"thread_id": conversation_id}}
     time_1 = time.time()
     result = await agent.ainvoke(
-        {"messages": [ {"role": "user", "content": user_payload}]},
+        {"messages": [ {"role": "user", "content": query}]},
+        thread_config,
         context=UserContext(namespace=namespace, doc_ids=doc_ids)
         )
     response = result["structured_response"]
