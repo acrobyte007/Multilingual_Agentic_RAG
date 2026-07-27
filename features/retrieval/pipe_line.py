@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 from features.retrieval.semantic_search import retrieve
 from features.retrieval.bm25 import bm25_rerank
 
-async def top_k_retrieval(name_space: str, user_query: str, doc_ids: List[str], translated_queries: dict = None):
-    search_result = await retrieve(name_space, user_query, doc_ids, top_k=30)
+async def top_k_retrieval(namespace: str, user_query: str, doc_ids: List[str], translated_queries: dict = None):
+    search_result = await retrieve(namespace, user_query, doc_ids, top_k=30)
     chunk_texts = search_result["chunk_texts"]
     chunk_ids = search_result["chunk_ids"]
     tokens_list = search_result["tokens_list"]

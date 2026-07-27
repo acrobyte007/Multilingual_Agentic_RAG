@@ -116,10 +116,10 @@ async def search(
 
     try:
         chunks = await top_k_retrieval(
-            namespace=context.namespace,
-            query=query,
-            doc_ids=context.doc_ids,
-            translated_queries=translated_queries,
+            context.namespace,
+            query,
+            context.doc_ids,
+            translated_queries,
         )
 
         if chunks is None:
