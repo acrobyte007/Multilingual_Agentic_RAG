@@ -170,15 +170,7 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 ---
 
-### 11. Evaluation
-
-* **Precision:** Contextual relevance
-* **Recall:** Coverage of relevant information
-* **Faithfulness:** LLM's ability to provide accurate answers
-
----
-
-### 12. Performance
+### 11. Performance
 
 * **Batch Size:** Configurable batch size for database writes
 

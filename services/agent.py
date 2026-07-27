@@ -18,8 +18,7 @@ logger = get_logger(__name__)
 mistral_primary = ChatMistralAI(
     model="ministral-8b-latest",
     temperature=0.7,
-    max_retries=1,
-    max_tokens=1000,
+    max_retries=2,
     timeout=60,
 )
 
