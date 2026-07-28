@@ -14,7 +14,6 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 The agent serves as the central intelligence layer, coordinating all components of the RAG pipeline:
 
-bash```
                      User Query
                           │
                           ▼
@@ -55,8 +54,6 @@ bash```
                           │
                           ▼
                LangSmith Trace + Response
-
-bash```
 
 #### Agent Configuration
 
@@ -215,11 +212,9 @@ bash```
 
 ### 5.2 Installation
 
-```bash
-git clone https://github.com/acrobyte007/Multilingual_Agentic_RAG
+git clone <<https://github.com/acrobyte007/Multilingual_Agentic_RAG>>
 cd multilingual-rag
 pip install -r requirements.txt
-```
 
 ---
 
@@ -227,7 +222,6 @@ pip install -r requirements.txt
 
 Create a `.env` file with the following:
 
-```env
 PINECONE_API_KEY=your_pinecone_key
 GOOGLE_API_KEY=your_google_key
 MISTRAL_API_KEY=your_mistral_key
@@ -241,16 +235,13 @@ GOOGLE_CLIENT_ID=your_google_client_id
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your_langsmith_key
 LANGSMITH_PROJECT=multilingual-rag
-LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-```
+LANGSMITH_ENDPOINT=<<https://api.smith.langchain.com>>
 
 ---
 
 ### 5.4 Run the System
 
-```bash
 uvicorn main:app --reload --port 8000
-```
 
 ---
 
