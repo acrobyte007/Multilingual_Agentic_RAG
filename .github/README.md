@@ -203,9 +203,11 @@ flowchart TD
 
 ### 5.2 Installation
 
+```bash
 git clone <<https://github.com/acrobyte007/Multilingual_Agentic_RAG>>
 cd multilingual-rag
 pip install -r requirements.txt
+```
 
 ---
 
@@ -213,6 +215,7 @@ pip install -r requirements.txt
 
 Create a `.env` file with the following:
 
+```bash
 PINECONE_API_KEY=your_pinecone_key
 GOOGLE_API_KEY=your_google_key
 MISTRAL_API_KEY=your_mistral_key
@@ -227,6 +230,7 @@ LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your_langsmith_key
 LANGSMITH_PROJECT=multilingual-rag
 LANGSMITH_ENDPOINT=<<https://api.smith.langchain.com>>
+```
 
 ---
 
