@@ -14,46 +14,35 @@ This system enables **cross-lingual retrieval**, meaning users can query in one 
 
 The agent serves as the central intelligence layer, coordinating all components of the RAG pipeline:
 
-                     User Query
-                          │
-                          ▼
-                System Prompt + Context
-                          │
-                          ▼
-                  Middleware Pipeline
-                          │
-      ┌───────────────────┼────────────────────┐
-      │                   │                    │
- PII Guardrails    Call Limit Middleware   Summarization
-      └───────────────────┴────────────────────┘
-                          │
-                          ▼
-                    Mistral Model
-                          │
-                    Tool Decision
-                          │
-                          ▼
-                  Search Tool (Retry)
-                          │
-                          ▼
-             Multilingual Retrieval Pipeline
-                          │
-         ┌────────────────┼────────────────┐
-         ▼                ▼                ▼
-      Translate      Pinecone Search   BM25 Rerank
-         │                │                │
-         └────────────────┴────────────────┘
-                          │
-                    Retrieved Context
-                          │
-                          ▼
-                    Mistral Response
-                          │
-                          ▼
-              Structured Output (RAGAgent)
-                          │
-                          ▼
-               LangSmith Trace + Response
+```mermaid
+flowchart TD
+    A[User Query] --> B[System Prompt + Context]
+    B --> C[Middleware Pipeline]
+
+    C --> D[PII Guardrails]
+    C --> E[Call Limit Middleware]
+    C --> F[Summarization]
+
+    D --> G[Mistral Model]
+    E --> G
+    F --> G
+
+    G --> H[Tool Decision]
+    H --> I[Search Tool with Retry]
+    I --> J[Multilingual Retrieval Pipeline]
+
+    J --> K[Translate]
+    J --> L[Pinecone Search]
+    J --> M[BM25 Rerank]
+
+    K --> N[Retrieved Context]
+    L --> N
+    M --> N
+
+    N --> O[Mistral Response]
+    O --> P[Structured Output (RAGAgent)]
+    P --> Q[LangSmith Trace + Response]
+```
 
 #### Agent Configuration
 
