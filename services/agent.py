@@ -8,6 +8,7 @@ from langchain_mistralai import ChatMistralAI
 from langchain.agents.middleware import PIIMiddleware, SummarizationMiddleware,ModelCallLimitMiddleware,ToolCallLimitMiddleware
 from langchain.agents.middleware import ToolRetryMiddleware,ModelRetryMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
+from langsmith import traceable
 from features.retrieval.pipe_line import top_k_retrieval
 from logger.logger import get_logger
 from dotenv import load_dotenv
@@ -203,7 +204,7 @@ agent = create_agent(
             ModelRetryMiddleware(max_retries=3,retry_on=(TimeoutError, ConnectionError,should_retry),backoff_factor=1.5,on_failure="continue")
         ],
         response_format=RAGAgent)
-
+@traceable(run_type="llm")
 async def get_rag_answer(
     namespace: str,
     query: str,
