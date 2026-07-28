@@ -56,6 +56,8 @@ bash```
                           ▼
                LangSmith Trace + Response
 
+bash```
+
 #### Agent Configuration
 
 - **Model:** `ministral-8b-latest`
