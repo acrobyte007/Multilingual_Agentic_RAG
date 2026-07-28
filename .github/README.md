@@ -16,32 +16,34 @@ The agent serves as the central intelligence layer, coordinating all components 
 
 ```mermaid
 flowchart TD
-    A[User Query] --> B[System Prompt + Context]
-    B --> C[Middleware Pipeline]
 
-    C --> D[PII Guardrails]
-    C --> E[Call Limit Middleware]
-    C --> F[Summarization]
+    A["User Query"] --> B["System Prompt + Context"]
+    B --> C["Middleware Pipeline"]
 
-    D --> G[Mistral Model]
+    C --> D["PII Guardrails"]
+    C --> E["Call Limit Middleware"]
+    C --> F["Summarization"]
+
+    D --> G["Mistral Model"]
     E --> G
     F --> G
 
-    G --> H[Tool Decision]
-    H --> I[Search Tool with Retry]
-    I --> J[Multilingual Retrieval Pipeline]
+    G --> H{"Tool Decision"}
 
-    J --> K[Translate]
-    J --> L[Pinecone Search]
-    J --> M[BM25 Rerank]
+    H --> I["Search Tool (Retry)"]
+    I --> J["Multilingual Retrieval Pipeline"]
 
-    K --> N[Retrieved Context]
+    J --> K["Translate"]
+    J --> L["Pinecone Search"]
+    J --> M["BM25 Rerank"]
+
+    K --> N["Retrieved Context"]
     L --> N
     M --> N
 
-    N --> O[Mistral Response]
-    O --> P[Structured Output (RAGAgent)]
-    P --> Q[LangSmith Trace + Response]
+    N --> O["Mistral Response"]
+    O --> P["Structured Output - RAGAgent"]
+    P --> Q["LangSmith Trace + Response"]
 ```
 
 #### Agent Configuration
