@@ -34,12 +34,9 @@ flowchart TD
     I --> J["Multilingual Retrieval Pipeline"]
 
     J --> K["Translate"]
-    J --> L["Pinecone Search"]
-    J --> M["BM25 Rerank"]
-
-    K --> N["Retrieved Context"]
-    L --> N
-    M --> N
+    K --> L["Pinecone Search"]
+    L --> M["BM25"]
+    M --> N["Retrieved Context"]
 
     N --> O["Mistral Response"]
     O --> P["Structured Output - RAGAgent"]
@@ -259,15 +256,4 @@ uvicorn main:app --reload --port 8000
 - **English:** *"What are the key points in this report?"*
 - **Hindi:** *"इस दस्तावेज़ का सारांश क्या है?"*
 - **Bengali:** *"এই নথির মূল বিষয় কী?"*
-
----
-
-## 8. Future Improvements
-
-- 🔊 Voice-based multilingual queries
-- 📱 Web UI / dashboard
-- 📚 Support for more languages (Tamil, Telugu, etc.)
-- 🧠 Advanced reranking models (cross-encoders)
-- 📊 Real-time evaluation dashboard
-- 🔐 Role-based access control (RBAC)
   
