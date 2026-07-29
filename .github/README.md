@@ -34,12 +34,9 @@ flowchart TD
     I --> J["Multilingual Retrieval Pipeline"]
 
     J --> K["Translate"]
-    J --> L["Pinecone Search"]
-    J --> M["BM25 Rerank"]
-
-    K --> N["Retrieved Context"]
-    L --> N
-    M --> N
+    K --> L["Pinecone Search"]
+    L --> M["BM25"]
+    M --> N["Retrieved Context"]
 
     N --> O["Mistral Response"]
     O --> P["Structured Output - RAGAgent"]
