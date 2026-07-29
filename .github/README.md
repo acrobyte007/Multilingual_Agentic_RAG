@@ -57,7 +57,7 @@ flowchart TD
   - `PIIMiddleware` – Redacts email addresses, masks credit card numbers, and blocks API keys.
   - `SummarizationMiddleware` – Automatically summarizes long conversations after 4000 tokens to manage context length.
 - **Response Format:** `RAGAgent` (Structured JSON response containing the generated answer.)
-- **System Prompt:** Guides the agent to answer only from retrieved document context, provide citation-backed responses, and reply in the user's original language.
+- **System Prompt:** Guides the agent to answer only from retrieved document context and reply in the user's original language.
 - **Language Handling:** Supports English, Hindi, and Bengali by retrieving multilingual context while responding in the user's original language.
 - **Context Schema:** `UserContext` (Securely passes namespace and document IDs to tools without exposing them to the LLM.)
 - **Error Handling:** Distinguishes between retryable and non-retryable tool failures with graceful recovery for transient failures.
