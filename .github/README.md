@@ -94,7 +94,6 @@ flowchart TD
   "email": "string",
   "password": "string"
 }
-bash```
 
 **Response (200):**
 {
