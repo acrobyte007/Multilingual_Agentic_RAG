@@ -7,6 +7,7 @@ from langchain.agents import create_agent
 from langchain_mistralai import ChatMistralAI
 from langchain.agents.middleware import PIIMiddleware, SummarizationMiddleware,ModelCallLimitMiddleware,ToolCallLimitMiddleware
 from langchain.agents.middleware import ToolRetryMiddleware,ModelRetryMiddleware
+from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langsmith import traceable
 from features.retrieval.pipe_line import top_k_retrieval
@@ -221,6 +222,9 @@ async def get_rag_answer(
         )
     response = result["structured_response"]
     time_2 = time.time()
-  
+    tool_message = next((m for m in result["messages"] if isinstance(m, ToolMessage)),None,)
+    sources = None
+    if tool_message:
+        sources = json.loads(tool_message.content)
     logger.info(f"RAG answer generated in {time_2 - time_1:.2f} seconds")
-    return response.answer,json.loads(result["messages"][2].content)
+    return response.answer,sources
