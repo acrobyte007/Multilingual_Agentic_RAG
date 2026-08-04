@@ -66,35 +66,30 @@ flowchart TD
 
 ## 2.2 API Endpoints
 
-## 1. Register
+## Register
 
 **POST** `/auth/register`  
 
 **Body:**
-bash```json
 {
   "username": "string",
   "email": "string",
   "password": "string"
 }
-bash```
 
 **Response (200):**
-bash```json
 {
   "message": "User registered successfully"
 }
-bash```
 
 ---
 
-## 2. Login
+## Login
 
 **POST** `/auth/login`  
 
 **Body:**
 
-bash```json
 {
   "email": "string",
   "password": "string"
@@ -102,16 +97,14 @@ bash```json
 bash```
 
 **Response (200):**
-bash```json
 {
   "access_token": "...",
   "token_type": "bearer"
 }
-bash```
 
 ---
 
-## 3. Get Current User
+## Get Current User
 
 **GET** `/auth/me`  
 *(Auth required)*
@@ -121,7 +114,7 @@ User object
 
 ---
 
-## 4. Ingest Document
+## Ingest Document
 
 **POST** `/api/v1/rag/ingest`  
 *(Auth required)*
@@ -130,48 +123,42 @@ User object
  `file` (document)
   
 **Response (200):**
-bash```json
 {
   "document_id": "...",
   "num_chunks": 0,
   "chunk_details": [...],
   "status": "..."
 }
-bash```
 
 ---
 
-## 5. Get RAG Response
+## Get RAG Response
 
 **POST** `/api/v1/rag/response`  
 *(Auth required)*
 
 **Body:**
-bash```json
+
 {
   "query": "string",
   "doc_ids": ["string"],       // optional
   "conversation_id": "uuid"    // optional
 }
-bash```
 
 **Response (200):**
-bash```json
 {
   "answer": "...",
   "conversation_id": "uuid"
 }
-bash```
 
 ---
 
-## 6. List User Documents
+## List User Documents
 
 **GET** `/api/v1/documents/`  
 *(Auth required)*
 
 **Response (200):**
-bash```json
 {
   "user_id": "...",
   "documents": [
@@ -188,24 +175,21 @@ bash```json
   ],
   "total": 0
 }
-bash```
 
 ---
 
-## 7. Delete Document
+## Delete Document
 
 **DELETE** `/api/v1/documents/{document_id}`  
 *(Auth required)*
 
 **Response (200):**
-bash```json
 {
   "status": "...",
   "message": "...",
   "document_id": "...",
   "file_name": "..."
 }
-bash```
 
 ---
 
