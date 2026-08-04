@@ -61,6 +61,134 @@ flowchart TD
 - **Language Handling:** Supports English, Hindi, and Bengali by retrieving multilingual context while responding in the user's original language.
 - **Context Schema:** `UserContext` (Securely passes namespace and document IDs to tools without exposing them to the LLM.)
 - **Error Handling:** Distinguishes between retryable and non-retryable tool failures with graceful recovery for transient failures.
+  
+---
+
+## 2.2 API Endpoints
+
+## Register
+
+**POST** `/auth/register`  
+
+**Body:**
+{
+  "username": "string",
+  "email": "string",
+  "password": "string"
+}
+
+**Response (200):**
+{
+  "message": "User registered successfully"
+}
+
+---
+
+## Login
+
+**POST** `/auth/login`  
+
+**Body:**
+
+{
+  "email": "string",
+  "password": "string"
+}
+
+**Response (200):**
+{
+  "access_token": "...",
+  "token_type": "bearer"
+}
+
+---
+
+## Get Current User
+
+**GET** `/auth/me`  
+*(Auth required)*
+
+**Response (200):**  
+User object
+
+---
+
+## Ingest Document
+
+**POST** `/api/v1/rag/ingest`  
+*(Auth required)*
+
+**Form-data:**
+ `file` (document)
+  
+**Response (200):**
+{
+  "document_id": "...",
+  "num_chunks": 0,
+  "chunk_details": [...],
+  "status": "..."
+}
+
+---
+
+## Get RAG Response
+
+**POST** `/api/v1/rag/response`  
+*(Auth required)*
+
+**Body:**
+
+{
+  "query": "string",
+  "doc_ids": ["string"],       // optional
+  "conversation_id": "uuid"    // optional
+}
+
+**Response (200):**
+{
+  "answer": "...",
+  "conversation_id": "uuid"
+}
+
+---
+
+## List User Documents
+
+**GET** `/api/v1/documents/`  
+*(Auth required)*
+
+**Response (200):**
+{
+  "user_id": "...",
+  "documents": [
+    {
+      "id": "...",
+      "file_name": "...",
+      "file_type": "...",
+      "file_size": 0,
+      "chunks": 0,
+      "primary_language": "...",
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "total": 0
+}
+
+---
+
+## Delete Document
+
+**DELETE** `/api/v1/documents/{document_id}`  
+*(Auth required)*
+
+**Response (200):**
+{
+  "status": "...",
+  "message": "...",
+  "document_id": "...",
+  "file_name": "..."
+}
 
 ---
 
